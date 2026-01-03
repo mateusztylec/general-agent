@@ -1,22 +1,14 @@
 "use client";
 
-import { parseSSE } from "@/lib/sse";
 import { useEffect, useRef, useState } from "react";
-
-type AgentEvent =
-  | { type: "session"; sessionId: string }
-  | { type: "text"; content: string }
-  | { type: "tool_start"; tool_use_id: string; name: string; input: unknown }
-  | { type: "tool_result"; tool_use_id: string; result: string }
-  | { type: "done"; result: string; cost?: number }
-  | { type: "error"; error: string; cost?: number };
+import { useRouter } from "next/navigation";
+import { useAgentUi } from "@/app/components/agent-ui-provider";
+import { useChatStream, type AgentEvent } from "@/app/components/use-chat-stream";
 
 type UiItem =
   | { kind: "user"; text: string }
   | { kind: "assistant"; text: string }
   | { kind: "event"; label: string; detail?: string };
-
-const LS_SESSION_ID = "agent_ui_session_id";
 
 function safeJsonStringify(value: unknown, maxLen = 2000): string {
   try {
@@ -27,129 +19,103 @@ function safeJsonStringify(value: unknown, maxLen = 2000): string {
   }
 }
 
-export default function AgentChat() {
-  const [sessionId, setSessionId] = useState<string>("");
+export default function AgentChat(props: {
+  initialSessionId?: string;
+  /**
+   * Used for "new conversation" flow: when server emits a real sessionId, caller can update URL.
+   */
+  onSessionResolved?: (sessionId: string) => void;
+}) {
+  const router = useRouter();
+  const { addDebugEvent, upsertConversation, registerActiveStop } = useAgentUi();
+
+  const [sessionId, setSessionId] = useState<string>(props.initialSessionId ?? "");
   const [items, setItems] = useState<UiItem[]>([]);
   const [input, setInput] = useState<string>("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [lastCost, setLastCost] = useState<number | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
+  const firstUserMessageRef = useRef<string>("");
+  const assistantIndexRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const savedSession = localStorage.getItem(LS_SESSION_ID);
-    if (savedSession) setSessionId(savedSession);
-  }, []);
+    // Reset assistant streaming target when switching conversations.
+    assistantIndexRef.current = null;
+  }, [props.initialSessionId]);
+
+  const pushEvent = (label: string, detail?: string) => {
+    setItems((prev) => [...prev, { kind: "event", label, detail }]);
+  };
+
+  const appendAssistant = (chunk: string) => {
+    setItems((prev) => {
+      const next = [...prev];
+      if (assistantIndexRef.current === null) {
+        assistantIndexRef.current = next.length;
+        next.push({ kind: "assistant", text: chunk });
+      } else {
+        const idx = assistantIndexRef.current;
+        const cur = idx === null ? null : next[idx];
+        if (cur && cur.kind === "assistant") next[idx] = { ...cur, text: cur.text + chunk };
+      }
+      return next;
+    });
+  };
+
+  const stream = useChatStream({
+    onRaw: (raw) => addDebugEvent({ kind: "event", label: "SSE", detail: raw, scope: sessionId || "global" }),
+    onEvent: (evt: AgentEvent) => {
+      if (evt.type === "session") {
+        setSessionId(evt.sessionId);
+        addDebugEvent({ kind: "info", label: "Session", detail: evt.sessionId, scope: evt.sessionId });
+
+        const title = firstUserMessageRef.current ? firstUserMessageRef.current.slice(0, 80) : "Untitled";
+        upsertConversation({ sessionId: evt.sessionId, title, updatedAt: Date.now() });
+
+        props.onSessionResolved?.(evt.sessionId);
+      } else if (evt.type === "text") {
+        appendAssistant(evt.content);
+      } else if (evt.type === "tool_start") {
+        pushEvent(`Tool start: ${evt.name}`, safeJsonStringify(evt.input, 1500));
+      } else if (evt.type === "tool_result") {
+        pushEvent(`Tool result: ${evt.tool_use_id}`, evt.result);
+      } else if (evt.type === "done") {
+        if (typeof evt.cost === "number") setLastCost(evt.cost);
+        pushEvent("Done", evt.result);
+      } else if (evt.type === "error") {
+        if (typeof evt.cost === "number") setLastCost(evt.cost);
+        pushEvent("Error", evt.error);
+      }
+    },
+  });
 
   useEffect(() => {
-    if (sessionId) localStorage.setItem(LS_SESSION_ID, sessionId);
-  }, [sessionId]);
+    registerActiveStop(stream.stop);
+    return () => registerActiveStop(null);
+  }, [registerActiveStop, stream.stop]);
 
   function resetConversation() {
     setItems([]);
     setLastCost(null);
     setSessionId("");
-    localStorage.removeItem(LS_SESSION_ID);
-  }
-
-  function stopStreaming() {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setIsStreaming(false);
+    router.refresh();
   }
 
   async function sendMessage() {
     const message = input.trim();
-    if (!message || isStreaming) return;
+    if (!message || stream.state === "connecting" || stream.state === "streaming") return;
 
     setInput("");
     setItems((prev) => [...prev, { kind: "user", text: message }]);
 
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setIsStreaming(true);
-
-    // We keep a "current assistant message" and append streaming chunks to it.
-    let assistantIndex: number | null = null;
-    let buffer = "";
-
-    const pushEvent = (label: string, detail?: string) => {
-      setItems((prev) => [...prev, { kind: "event", label, detail }]);
-    };
-
-    const appendAssistant = (chunk: string) => {
-      setItems((prev) => {
-        const next = [...prev];
-        if (assistantIndex === null) {
-          assistantIndex = next.length;
-          next.push({ kind: "assistant", text: chunk });
-        } else {
-          const cur = next[assistantIndex];
-          if (cur && cur.kind === "assistant") next[assistantIndex] = { ...cur, text: cur.text + chunk };
-        }
-        return next;
-      });
-    };
-
-    try {
-      const res = await fetch(`/api/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, ...(sessionId ? { sessionId } : {}) }),
-        signal: controller.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        const text = await res.text().catch(() => "");
-        throw new Error(`HTTP ${res.status}${text ? `: ${text}` : ""}`);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const parsed = parseSSE(buffer);
-        buffer = parsed.rest;
-
-        for (const raw of parsed.events) {
-          let evt: AgentEvent | null = null;
-          try {
-            evt = JSON.parse(raw) as AgentEvent;
-          } catch {
-            pushEvent("Malformed event", raw);
-            continue;
-          }
-
-          if (evt.type === "session") {
-            setSessionId(evt.sessionId);
-            pushEvent("Session", evt.sessionId);
-          } else if (evt.type === "text") {
-            appendAssistant(evt.content);
-          } else if (evt.type === "tool_start") {
-            pushEvent(`Tool start: ${evt.name}`, safeJsonStringify(evt.input, 1500));
-          } else if (evt.type === "tool_result") {
-            pushEvent(`Tool result: ${evt.tool_use_id}`, evt.result);
-          } else if (evt.type === "done") {
-            if (typeof evt.cost === "number") setLastCost(evt.cost);
-            pushEvent("Done", evt.result);
-          } else if (evt.type === "error") {
-            if (typeof evt.cost === "number") setLastCost(evt.cost);
-            pushEvent("Error", evt.error);
-          }
-        }
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      pushEvent("Request error", msg);
-    } finally {
-      setIsStreaming(false);
-      abortRef.current = null;
+    if (!props.initialSessionId && !sessionId && !firstUserMessageRef.current) {
+      firstUserMessageRef.current = message;
     }
+
+    await stream.start({ message, ...(sessionId ? { sessionId } : {}) });
+
+    if (sessionId) upsertConversation({ sessionId, updatedAt: Date.now() });
   }
 
+  const isStreaming = stream.state === "connecting" || stream.state === "streaming";
   const canSend = input.trim().length > 0 && !isStreaming;
 
   return (
@@ -181,13 +147,28 @@ export default function AgentChat() {
           <div>
             <span className="text-zinc-600 dark:text-zinc-400">Status:</span>{" "}
             <span className={isStreaming ? "text-amber-600 dark:text-amber-400" : ""}>
-              {isStreaming ? "streaming" : "idle"}
+              {isStreaming ? stream.state : "idle"}
             </span>
           </div>
           <div>
             <span className="text-zinc-600 dark:text-zinc-400">Last cost:</span>{" "}
             <code className="font-mono">{lastCost ?? "-"}</code>
           </div>
+          {(stream.state === "error" || stream.state === "interrupted") && (
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-600 dark:text-zinc-400">Error:</span>
+              <span className="text-red-600 dark:text-red-400">{stream.error ?? "Unknown"}</span>
+              {stream.lastRequest && (
+                <button
+                  type="button"
+                  onClick={stream.retry}
+                  className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-xs font-medium dark:border-zinc-700 dark:bg-black"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </section>
 
@@ -196,7 +177,7 @@ export default function AgentChat() {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">Conversation</h2>
           <button
             type="button"
-            onClick={stopStreaming}
+            onClick={stream.stop}
             disabled={!isStreaming}
             className="h-8 rounded-md border border-zinc-300 bg-white px-2 text-xs font-medium disabled:opacity-50 dark:border-zinc-700 dark:bg-black"
           >
