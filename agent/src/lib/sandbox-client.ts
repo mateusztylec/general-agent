@@ -1,4 +1,6 @@
-const SANDBOX_URL = process.env.SANDBOX_WORKER_URL || "http://localhost:8787";
+import "server-only";
+
+import { serverEnv } from "@/lib/config/env-server";
 
 interface ExecResult {
   stdout: string;
@@ -20,9 +22,12 @@ interface WriteResult {
 }
 
 async function sandboxFetch<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
-  const response = await fetch(`${SANDBOX_URL}${endpoint}`, {
+  const response = await fetch(`${serverEnv.SANDBOX_WORKER_URL}${endpoint}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${serverEnv.SANDBOX_BEARER_TOKEN}`,
+    },
     body: JSON.stringify(body),
   });
 
