@@ -8,6 +8,9 @@ declare namespace Cloudflare {
   }
   interface Env {
     SANDBOX_BEARER_TOKEN: string;
+    R2_ENDPOINT: string;
+    AWS_ACCESS_KEY_ID: string;
+    AWS_SECRET_ACCESS_KEY: string;
     Sandbox: DurableObjectNamespace<import("./src/index").Sandbox>;
   }
 }
@@ -16,7 +19,12 @@ type StringifyValues<EnvType extends Record<string, unknown>> = {
   [Binding in keyof EnvType]: EnvType[Binding] extends string ? EnvType[Binding] : string;
 };
 declare namespace NodeJS {
-  interface ProcessEnv extends StringifyValues<Pick<Cloudflare.Env, "SANDBOX_BEARER_TOKEN">> { }
+  interface ProcessEnv extends StringifyValues<
+    Pick<
+      Cloudflare.Env,
+      "SANDBOX_BEARER_TOKEN" | "R2_ENDPOINT" | "AWS_ACCESS_KEY_ID" | "AWS_SECRET_ACCESS_KEY"
+    >
+  > { }
 }
 
 // Begin runtime types

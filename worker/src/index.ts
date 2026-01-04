@@ -1,5 +1,12 @@
 import { getSandbox } from '@cloudflare/sandbox';
 
+// Keep in-memory across requests within the same isolate (resets on cold start).
+// We key by sessionId so each sandbox session gets mounted at most once.
+const mountedR2Sessions = new Set<string>();
+
+const R2_BUCKET_NAME = 'obsidian';
+const R2_MOUNT_PATH = '/data/obsidian';
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -14,33 +21,6 @@ export default {
     // Handle preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
-    }
-
-    // Debug endpoint
-    if (url.pathname === '/debug') {
-      const expectedToken = env.SANDBOX_BEARER_TOKEN;
-      const authHeader = request.headers.get('Authorization') || '';
-      const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
-      const envHasTokenKey = Object.prototype.hasOwnProperty.call(env, 'SANDBOX_BEARER_TOKEN');
-      const processAvailable = typeof process !== 'undefined';
-      const processEnvAvailable = processAvailable && typeof process.env !== 'undefined';
-      const processEnvToken = processEnvAvailable ? process.env.SANDBOX_BEARER_TOKEN : undefined;
-      const processEnvHasTokenKey =
-        processEnvAvailable && Object.prototype.hasOwnProperty.call(process.env, 'SANDBOX_BEARER_TOKEN');
-      return Response.json({
-        envHasTokenKey,
-        tokenExists: !!expectedToken,
-        tokenLength: expectedToken?.length ?? null,
-        processAvailable,
-        processEnvAvailable,
-        processEnvHasTokenKey,
-        processEnvTokenExists: !!processEnvToken,
-        processEnvTokenLength: processEnvToken?.length ?? null,
-        authHeaderPresent: !!authHeader,
-        authHeaderLength: authHeader.length,
-        providedTokenLength: providedToken?.length ?? null,
-        match: !!expectedToken && authHeader === `Bearer ${expectedToken}`,
-      }, { headers: corsHeaders });
     }
 
     // Bearer token auth (required for all non-OPTIONS requests)
@@ -65,6 +45,33 @@ export default {
       // Cloudflare Workers disallow using I/O objects created in one request in another request.
       // Recreate the handle per-request; the underlying Durable Object still provides continuity via sessionId.
       const sandbox = getSandbox(env.Sandbox, sessionId);
+
+      // Mount R2 bucket (read-only) for this session.
+      // Intended to be triggered by the "memory-bank" subagent via agent-side canUseTool.
+      if (url.pathname === '/sandbox/mount-r2') {
+        if (mountedR2Sessions.has(sessionId)) {
+          return Response.json({ success: true, mounted: false }, { headers: corsHeaders });
+        }
+
+        if (!env.R2_ENDPOINT || !env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+          return Response.json(
+            { error: 'Missing R2 configuration (R2_ENDPOINT / AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)' },
+            { status: 500, headers: corsHeaders }
+          );
+        }
+
+        await sandbox.mountBucket(R2_BUCKET_NAME, R2_MOUNT_PATH, {
+          endpoint: env.R2_ENDPOINT,
+          credentials: {
+            accessKeyId: env.AWS_ACCESS_KEY_ID,
+            secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+          },
+          readOnly: true,
+        });
+
+        mountedR2Sessions.add(sessionId);
+        return Response.json({ success: true, mounted: true }, { headers: corsHeaders });
+      }
 
       // Execute command in sandbox
       if (url.pathname === '/sandbox/exec') {

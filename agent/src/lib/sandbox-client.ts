@@ -21,6 +21,12 @@ interface WriteResult {
   error?: string;
 }
 
+interface MountR2Result {
+  success: boolean;
+  mounted?: boolean;
+  error?: string;
+}
+
 async function sandboxFetch<T>(endpoint: string, body: Record<string, unknown>): Promise<T> {
   const response = await fetch(`${serverEnv.SANDBOX_WORKER_URL}${endpoint}`, {
     method: "POST",
@@ -42,6 +48,10 @@ async function sandboxFetch<T>(endpoint: string, body: Record<string, unknown>):
 export const sandboxClient = {
   async exec(command: string): Promise<ExecResult> {
     return sandboxFetch<ExecResult>("/sandbox/exec", { command });
+  },
+
+  async mountR2(sessionId: string): Promise<MountR2Result> {
+    return sandboxFetch<MountR2Result>("/sandbox/mount-r2", { sessionId });
   },
 
   async readFile(path: string): Promise<ReadResult> {

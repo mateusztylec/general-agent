@@ -1,6 +1,11 @@
-import { query, tool, createSdkMcpServer } from "@anthropic-ai/claude-agent-sdk";
+import { query, tool, createSdkMcpServer, HookCallback, PreToolUseHookInput } from "@anthropic-ai/claude-agent-sdk";
 import { z } from "zod";
 import { sandboxClient } from "@/lib/sandbox-client";
+import { guardRead } from "@/lib/agent/hooks";
+
+// Cache across requests within the Node process (resets on cold start).
+const r2MountedSessions = new Set<string>();
+const r2MountInFlight = new Map<string, Promise<void>>();
 
 /**
  * MCP tools that call your sandbox worker.
@@ -61,6 +66,9 @@ export async function handleChat(
   stream: SSEStream,
   options?: { sessionId?: string }
 ): Promise<void> {
+  // Use the resumed sessionId if provided; otherwise we will fill it in on init.
+  let effectiveSessionId: string | undefined = options?.sessionId;
+
   for await (const message of query({
     prompt: userMessage,
     options: {
@@ -71,7 +79,40 @@ export async function handleChat(
       mcpServers: { sandbox: sandboxTools },
       allowedTools: ["mcp__sandbox__exec", "mcp__sandbox__read_file", "mcp__sandbox__write_file"],
       ...(options?.sessionId ? { resume: options.sessionId } : {}),
-      permissionMode: "acceptEdits",
+      permissionMode: "default",
+      canUseTool: async (toolName, input, { agentID }) => {
+        // Only mount for the memory-bank subagent, and only when it's about to use sandbox tools.
+        if (
+          agentID === "memory-bank" &&
+          (toolName === "mcp__sandbox__exec" ||
+            toolName === "mcp__sandbox__read_file" ||
+            toolName === "mcp__sandbox__write_file")
+        ) {
+          const sid = effectiveSessionId;
+          if (sid && !r2MountedSessions.has(sid)) {
+            const existing = r2MountInFlight.get(sid);
+            if (existing) {
+              await existing;
+            } else {
+              const p = (async () => {
+                await sandboxClient.mountR2(sid);
+                r2MountedSessions.add(sid);
+              })().finally(() => {
+                r2MountInFlight.delete(sid);
+              });
+              r2MountInFlight.set(sid, p);
+              await p;
+            }
+          }
+        }
+
+        return { behavior: "allow", updatedInput: input };
+      },
+      hooks: {
+        PreToolUse: [
+          { matcher: "Read", hooks: [guardRead] },
+        ]
+      }
     },
   })) {
     if (!("type" in message)) continue;
@@ -79,6 +120,7 @@ export async function handleChat(
     switch (message.type) {
       case "system":
         if (message.subtype === "init") {
+          effectiveSessionId = message.session_id;
           await stream.writeSSE({
             data: JSON.stringify({ type: "session", sessionId: message.session_id }),
           });
