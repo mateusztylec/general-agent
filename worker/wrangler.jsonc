@@ -32,8 +32,6 @@
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */
-	"vars": { "SANDBOX_BEARER_TOKEN": "placeholder" },
-	"keep_vars": true,
 	/**
    * Note: Use secrets to store sensitive data.
    * https://developers.cloudflare.com/workers/configuration/secrets/
