@@ -20,13 +20,14 @@ export default {
     if (url.pathname === '/debug') {
       const expectedToken = env.SANDBOX_BEARER_TOKEN;
       const authHeader = request.headers.get('Authorization') || '';
+      const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
       return Response.json({
         tokenExists: !!expectedToken,
-        tokenLength: expectedToken?.length,
-        tokenValue: expectedToken,
-        authHeader: authHeader,
+        tokenLength: expectedToken?.length ?? null,
+        authHeaderPresent: !!authHeader,
         authHeaderLength: authHeader.length,
-        match: authHeader === `Bearer ${expectedToken}`
+        providedTokenLength: providedToken?.length ?? null,
+        match: !!expectedToken && authHeader === `Bearer ${expectedToken}`,
       }, { headers: corsHeaders });
     }
 
