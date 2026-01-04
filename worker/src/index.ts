@@ -8,12 +8,23 @@ export default {
     const corsHeaders = {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     };
 
     // Handle preflight
     if (request.method === 'OPTIONS') {
       return new Response(null, { headers: corsHeaders });
+    }
+
+    // Bearer token auth (required for all non-OPTIONS requests)
+    const expectedToken = env.SANDBOX_BEARER_TOKEN;
+    if (!expectedToken) {
+      return Response.json({ error: 'Server misconfigured' }, { status: 500, headers: corsHeaders });
+    }
+
+    const authHeader = request.headers.get('Authorization') || '';
+    if (authHeader !== `Bearer ${expectedToken}`) {
+      return Response.json({ error: 'Unauthorized' }, { status: 401, headers: corsHeaders });
     }
 
     if (request.method !== 'POST') {
