@@ -32,7 +32,7 @@
    * Environment Variables
    * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
    */
-	// "vars": { "MY_VARIABLE": "production_value" }
+	"vars": { "SANDBOX_BEARER_TOKEN": "placeholder" },
 	/**
    * Note: Use secrets to store sensitive data.
    * https://developers.cloudflare.com/workers/configuration/secrets/
