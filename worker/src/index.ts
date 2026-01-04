@@ -16,6 +16,20 @@ export default {
       return new Response(null, { headers: corsHeaders });
     }
 
+    // Debug endpoint
+    if (url.pathname === '/debug') {
+      const expectedToken = env.SANDBOX_BEARER_TOKEN;
+      const authHeader = request.headers.get('Authorization') || '';
+      return Response.json({
+        tokenExists: !!expectedToken,
+        tokenLength: expectedToken?.length,
+        tokenValue: expectedToken,
+        authHeader: authHeader,
+        authHeaderLength: authHeader.length,
+        match: authHeader === `Bearer ${expectedToken}`
+      }, { headers: corsHeaders });
+    }
+
     // Bearer token auth (required for all non-OPTIONS requests)
     const expectedToken = env.SANDBOX_BEARER_TOKEN;
     if (!expectedToken) {
