@@ -21,9 +21,21 @@ export default {
       const expectedToken = env.SANDBOX_BEARER_TOKEN;
       const authHeader = request.headers.get('Authorization') || '';
       const providedToken = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
+      const envHasTokenKey = Object.prototype.hasOwnProperty.call(env, 'SANDBOX_BEARER_TOKEN');
+      const processAvailable = typeof process !== 'undefined';
+      const processEnvAvailable = processAvailable && typeof process.env !== 'undefined';
+      const processEnvToken = processEnvAvailable ? process.env.SANDBOX_BEARER_TOKEN : undefined;
+      const processEnvHasTokenKey =
+        processEnvAvailable && Object.prototype.hasOwnProperty.call(process.env, 'SANDBOX_BEARER_TOKEN');
       return Response.json({
+        envHasTokenKey,
         tokenExists: !!expectedToken,
         tokenLength: expectedToken?.length ?? null,
+        processAvailable,
+        processEnvAvailable,
+        processEnvHasTokenKey,
+        processEnvTokenExists: !!processEnvToken,
+        processEnvTokenLength: processEnvToken?.length ?? null,
         authHeaderPresent: !!authHeader,
         authHeaderLength: authHeader.length,
         providedTokenLength: providedToken?.length ?? null,
