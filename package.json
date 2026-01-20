@@ -1,0 +1,22 @@
+{
+    "name": "general-agent",
+    "private": true,
+    "packageManager": "bun@latest",
+    "workspaces": {
+        "packages": [
+            "ui"
+        ],
+        "catalog": {
+            "next": "16.1.4",
+            "react": "19.2.3",
+            "react-dom": "19.2.3",
+            "@biomejs/biome": "2.3.11",
+            "@tailwindcss/postcss": "4.1.18",
+            "@types/node": "25.0.9",
+            "@types/react": "19.2.9",
+            "@types/react-dom": "19.2.3",
+            "tailwindcss": "4.1.18",
+            "typescript": "5.9.3"
+        }
+    }
+}

@@ -199,3 +199,5 @@ dist
 !.dev.vars.example
 
 other_project/
+.vscode/
+opencode/
