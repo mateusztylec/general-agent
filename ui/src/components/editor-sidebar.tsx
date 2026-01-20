@@ -1,63 +1,99 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useState } from "react"
-import { Bot, Cpu, Wrench, Sparkles, Trash2, GripVertical, Eye, EyeOff, HardDrive } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Separator } from "@/components/ui/separator"
-import type { Node } from "@xyflow/react"
-import type { NodeData, NodeType, BlockType, Block, SelectedBlock, StorageBlock } from "@/lib/types"
-import { isStorageBlock } from "@/lib/types"
+import type { Node } from "@xyflow/react";
+import {
+  Bot,
+  Cpu,
+  Eye,
+  EyeOff,
+  GripVertical,
+  HardDrive,
+  Sparkles,
+  Trash2,
+  Wrench,
+} from "lucide-react";
+import type React from "react";
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import type {
+  Block,
+  BlockType,
+  NodeData,
+  NodeType,
+  SelectedBlock,
+  StorageBlock,
+  UpdateBlockData,
+} from "@/lib/types";
+import { isStorageBlock } from "@/lib/types";
 
 interface EditorSidebarProps {
-  selectedNode: Node<NodeData> | null
-  selectedBlock: SelectedBlock | null
-  onUpdateNode: (nodeId: string, data: Partial<NodeData>) => void
-  onUpdateBlock: (nodeId: string, blockId: string, data: Partial<Block | StorageBlock>) => void
-  onDeleteNode: (nodeId: string) => void
-  onDeleteBlock: (nodeId: string, blockId: string, blockType: BlockType) => void
+  selectedNode: Node<NodeData> | null;
+  selectedBlock: SelectedBlock | null;
+  onUpdateNode: (nodeId: string, data: Partial<NodeData>) => void;
+  onUpdateBlock: (
+    nodeId: string,
+    blockId: string,
+    data: UpdateBlockData,
+  ) => void;
+  onDeleteNode: (nodeId: string) => void;
+  onDeleteBlock: (
+    nodeId: string,
+    blockId: string,
+    blockType: BlockType,
+  ) => void;
 }
 
-const nodeItems: { type: NodeType; label: string; icon: React.ReactNode; color: string }[] = [
-  {
-    type: "agent",
-    label: "Main Agent",
-    icon: <Bot className="h-4 w-4" />,
-    color: "bg-node-agent",
-  },
-  {
-    type: "subagent",
-    label: "Subagent",
-    icon: <Cpu className="h-4 w-4" />,
-    color: "bg-node-subagent",
-  },
-]
+const nodeItems: {
+  type: NodeType;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+}[] = [
+    {
+      type: "agent",
+      label: "Main Agent",
+      icon: <Bot className="h-4 w-4" />,
+      color: "bg-node-agent",
+    },
+    {
+      type: "subagent",
+      label: "Subagent",
+      icon: <Cpu className="h-4 w-4" />,
+      color: "bg-node-subagent",
+    },
+  ];
 
-const blockItems: { type: BlockType; label: string; icon: React.ReactNode; color: string }[] = [
-  {
-    type: "tool",
-    label: "Tool",
-    icon: <Wrench className="h-4 w-4" />,
-    color: "bg-node-tool",
-  },
-  {
-    type: "skill",
-    label: "Skill",
-    icon: <Sparkles className="h-4 w-4" />,
-    color: "bg-node-skill",
-  },
-  {
-    type: "storage",
-    label: "R2 Storage",
-    icon: <HardDrive className="h-4 w-4" />,
-    color: "bg-sky-500",
-  },
-]
+const blockItems: {
+  type: BlockType;
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+}[] = [
+    {
+      type: "tool",
+      label: "Tool",
+      icon: <Wrench className="h-4 w-4" />,
+      color: "bg-node-tool",
+    },
+    {
+      type: "skill",
+      label: "Skill",
+      icon: <Sparkles className="h-4 w-4" />,
+      color: "bg-node-skill",
+    },
+    {
+      type: "storage",
+      label: "R2 Storage",
+      icon: <HardDrive className="h-4 w-4" />,
+      color: "bg-sky-500",
+    },
+  ];
 
-let blockId = 1
+let blockId = 1;
 
 function StorageBlockProperties({
   block,
@@ -65,23 +101,29 @@ function StorageBlockProperties({
   onUpdate,
   onDelete,
 }: {
-  block: StorageBlock
-  nodeId: string
-  onUpdate: (nodeId: string, blockId: string, data: Partial<StorageBlock>) => void
-  onDelete: (nodeId: string, blockId: string, blockType: BlockType) => void
+  block: StorageBlock;
+  nodeId: string;
+  onUpdate: (
+    nodeId: string,
+    blockId: string,
+    data: Partial<StorageBlock>,
+  ) => void;
+  onDelete: (nodeId: string, blockId: string, blockType: BlockType) => void;
 }) {
-  const [showSecretKey, setShowSecretKey] = useState(false)
+  const [showSecretKey, setShowSecretKey] = useState(false);
 
   const handleMountPathChange = (value: string) => {
-    const cleanPath = value.replace(/^\/data\/?/, "").replace(/^\/+/, "")
-    const finalPath = `/data/${cleanPath}`
-    onUpdate(nodeId, block.id, { mountPath: finalPath })
-  }
+    const cleanPath = value.replace(/^\/data\/?/, "").replace(/^\/+/, "");
+    const finalPath = `/data/${cleanPath}`;
+    onUpdate(nodeId, block.id, { mountPath: finalPath });
+  };
 
   return (
     <div className="border-t border-sidebar-border p-4 bg-sidebar max-h-[60vh] overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
-        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Storage Properties</Label>
+        <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+          Storage Properties
+        </Label>
         <Button
           variant="ghost"
           size="icon"
@@ -94,26 +136,36 @@ function StorageBlockProperties({
       <div className="space-y-4">
         {/* Label */}
         <div className="space-y-1.5">
-          <Label htmlFor="storage-label" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="storage-label"
+            className="text-xs text-muted-foreground"
+          >
             Label
           </Label>
           <Input
             id="storage-label"
             value={block.label}
-            onChange={(e) => onUpdate(nodeId, block.id, { label: e.target.value })}
+            onChange={(e) =>
+              onUpdate(nodeId, block.id, { label: e.target.value })
+            }
             className="bg-input border-border h-8 text-sm"
           />
         </div>
 
         {/* Description */}
         <div className="space-y-1.5">
-          <Label htmlFor="storage-description" className="text-xs text-muted-foreground">
+          <Label
+            htmlFor="storage-description"
+            className="text-xs text-muted-foreground"
+          >
             Description
           </Label>
           <Textarea
             id="storage-description"
             value={block.description}
-            onChange={(e) => onUpdate(nodeId, block.id, { description: e.target.value })}
+            onChange={(e) =>
+              onUpdate(nodeId, block.id, { description: e.target.value })
+            }
             className="bg-input border-border resize-none text-sm"
             rows={2}
           />
@@ -130,7 +182,9 @@ function StorageBlockProperties({
             id="endpoint"
             placeholder="https://account.r2.cloudflarestorage.com"
             value={block.endpoint}
-            onChange={(e) => onUpdate(nodeId, block.id, { endpoint: e.target.value })}
+            onChange={(e) =>
+              onUpdate(nodeId, block.id, { endpoint: e.target.value })
+            }
             className="bg-input border-border h-8 text-sm"
           />
         </div>
@@ -144,7 +198,9 @@ function StorageBlockProperties({
             id="bucket"
             placeholder="my-bucket"
             value={block.bucketName}
-            onChange={(e) => onUpdate(nodeId, block.id, { bucketName: e.target.value })}
+            onChange={(e) =>
+              onUpdate(nodeId, block.id, { bucketName: e.target.value })
+            }
             className="bg-input border-border h-8 text-sm"
           />
         </div>
@@ -158,7 +214,9 @@ function StorageBlockProperties({
             id="accessKey"
             placeholder="ACCESS_KEY_ID"
             value={block.accessKey}
-            onChange={(e) => onUpdate(nodeId, block.id, { accessKey: e.target.value })}
+            onChange={(e) =>
+              onUpdate(nodeId, block.id, { accessKey: e.target.value })
+            }
             className="bg-input border-border h-8 text-sm font-mono"
           />
         </div>
@@ -174,7 +232,9 @@ function StorageBlockProperties({
               type={showSecretKey ? "text" : "password"}
               placeholder="SECRET_ACCESS_KEY"
               value={block.secretKey}
-              onChange={(e) => onUpdate(nodeId, block.id, { secretKey: e.target.value })}
+              onChange={(e) =>
+                onUpdate(nodeId, block.id, { secretKey: e.target.value })
+              }
               className="bg-input border-border h-8 text-sm font-mono pr-9"
             />
             <button
@@ -182,7 +242,11 @@ function StorageBlockProperties({
               onClick={() => setShowSecretKey(!showSecretKey)}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
             >
-              {showSecretKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {showSecretKey ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
             </button>
           </div>
         </div>
@@ -205,7 +269,8 @@ function StorageBlockProperties({
             />
           </div>
           <p className="text-[10px] text-muted-foreground/70">
-            Full path: <span className="font-mono">{block.mountPath || "/data/"}</span>
+            Full path:{" "}
+            <span className="font-mono">{block.mountPath || "/data/"}</span>
           </p>
         </div>
 
@@ -214,23 +279,25 @@ function StorageBlockProperties({
           <Label className="text-xs text-muted-foreground">Access Mode</Label>
           <div className="flex gap-2">
             <button
-              onClick={() => onUpdate(nodeId, block.id, { accessMode: "readonly" })}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                block.accessMode === "readonly"
+              type="button"
+              onClick={() =>
+                onUpdate(nodeId, block.id, { accessMode: "readonly" })
+              }
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${block.accessMode === "readonly"
                   ? "bg-sky-500/20 border-sky-500/50 text-sky-400"
                   : "bg-secondary/50 border-border text-muted-foreground hover:bg-secondary"
-              }`}
+                }`}
             >
               <Eye className="h-3.5 w-3.5" />
               Read Only
             </button>
             <button
+              type="button"
               onClick={() => onUpdate(nodeId, block.id, { accessMode: "full" })}
-              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${
-                block.accessMode === "full"
+              className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${block.accessMode === "full"
                   ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
                   : "bg-secondary/50 border-border text-muted-foreground hover:bg-secondary"
-              }`}
+                }`}
             >
               <HardDrive className="h-3.5 w-3.5" />
               Full Access
@@ -247,7 +314,7 @@ function StorageBlockProperties({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export function EditorSidebar({
@@ -259,11 +326,15 @@ export function EditorSidebar({
   onDeleteBlock,
 }: EditorSidebarProps) {
   const onDragStartNode = (event: React.DragEvent, nodeType: NodeType) => {
-    event.dataTransfer.setData("application/reactflow", nodeType)
-    event.dataTransfer.effectAllowed = "move"
-  }
+    event.dataTransfer.setData("application/reactflow", nodeType);
+    event.dataTransfer.effectAllowed = "move";
+  };
 
-  const onDragStartBlock = (event: React.DragEvent, blockType: BlockType, label: string) => {
+  const onDragStartBlock = (
+    event: React.DragEvent,
+    blockType: BlockType,
+    label: string,
+  ) => {
     if (blockType === "storage") {
       const storageBlock: StorageBlock = {
         id: `block-${blockId++}`,
@@ -276,44 +347,57 @@ export function EditorSidebar({
         secretKey: "",
         mountPath: "/data/",
         accessMode: "readonly",
-      }
-      event.dataTransfer.setData("application/block", JSON.stringify(storageBlock))
+      };
+      event.dataTransfer.setData(
+        "application/block",
+        JSON.stringify(storageBlock),
+      );
     } else {
       const block: Block = {
         id: `block-${blockId++}`,
         type: blockType,
         label,
-        description: blockType === "tool" ? "External capability" : "Learned ability",
-      }
-      event.dataTransfer.setData("application/block", JSON.stringify(block))
+        description:
+          blockType === "tool" ? "External capability" : "Learned ability",
+      };
+      event.dataTransfer.setData("application/block", JSON.stringify(block));
     }
-    event.dataTransfer.effectAllowed = "copy"
-  }
+    event.dataTransfer.effectAllowed = "copy";
+  };
 
-  const isStorage = selectedBlock && isStorageBlock(selectedBlock.block)
+  const isStorage = selectedBlock && isStorageBlock(selectedBlock.block);
 
   return (
     <aside className="w-72 h-full bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="p-4 border-b border-sidebar-border">
-        <h1 className="text-lg font-semibold text-sidebar-foreground">Agent Editor</h1>
-        <p className="text-sm text-muted-foreground">Build your agent workflow</p>
+        <h1 className="text-lg font-semibold text-sidebar-foreground">
+          Agent Editor
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Build your agent workflow
+        </p>
       </div>
 
       <div className="p-4 flex-1 overflow-auto">
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Agents (drag to canvas)</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Agents (drag to canvas)
+          </Label>
           <div className="space-y-2">
             {nodeItems.map((item) => (
-              <div
+              <button
                 key={item.type}
+                type="button"
                 draggable
                 onDragStart={(e) => onDragStartNode(e, item.type)}
                 className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border border-border cursor-grab hover:bg-secondary transition-colors active:cursor-grabbing"
               >
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
-                <div className={`p-2 rounded-md ${item.color} text-background`}>{item.icon}</div>
+                <div className={`p-2 rounded-md ${item.color} text-background`}>
+                  {item.icon}
+                </div>
                 <span className="text-sm font-medium">{item.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -326,16 +410,19 @@ export function EditorSidebar({
           </Label>
           <div className="space-y-2">
             {blockItems.map((item) => (
-              <div
+              <button
                 key={item.type}
+                type="button"
                 draggable
                 onDragStart={(e) => onDragStartBlock(e, item.type, item.label)}
                 className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 border border-border cursor-grab hover:bg-secondary transition-colors active:cursor-grabbing"
               >
                 <GripVertical className="h-4 w-4 text-muted-foreground" />
-                <div className={`p-2 rounded-md ${item.color} text-background`}>{item.icon}</div>
+                <div className={`p-2 rounded-md ${item.color} text-background`}>
+                  {item.icon}
+                </div>
                 <span className="text-sm font-medium">{item.label}</span>
-              </div>
+              </button>
             ))}
           </div>
         </div>
@@ -343,7 +430,9 @@ export function EditorSidebar({
         <Separator className="my-4" />
 
         <div className="space-y-2">
-          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">How it works</Label>
+          <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            How it works
+          </Label>
           <div className="text-xs text-muted-foreground space-y-1.5 p-3 rounded-lg bg-secondary/30 border border-border">
             <p>1. Drag agents onto the canvas</p>
             <p>2. Connect Main Agent to Subagents</p>
@@ -369,12 +458,20 @@ export function EditorSidebar({
       {selectedBlock && !isStorage && (
         <div className="border-t border-sidebar-border p-4 bg-sidebar">
           <div className="flex items-center justify-between mb-4">
-            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Block Properties</Label>
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Block Properties
+            </Label>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => onDeleteBlock(selectedBlock.nodeId, selectedBlock.block.id, selectedBlock.block.type)}
+              onClick={() =>
+                onDeleteBlock(
+                  selectedBlock.nodeId,
+                  selectedBlock.block.id,
+                  selectedBlock.block.type,
+                )
+              }
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -387,7 +484,11 @@ export function EditorSidebar({
               <Input
                 id="block-label"
                 value={selectedBlock.block.label}
-                onChange={(e) => onUpdateBlock(selectedBlock.nodeId, selectedBlock.block.id, { label: e.target.value })}
+                onChange={(e) =>
+                  onUpdateBlock(selectedBlock.nodeId, selectedBlock.block.id, {
+                    label: e.target.value,
+                  })
+                }
                 className="bg-input border-border"
               />
             </div>
@@ -399,7 +500,9 @@ export function EditorSidebar({
                 id="block-description"
                 value={selectedBlock.block.description}
                 onChange={(e) =>
-                  onUpdateBlock(selectedBlock.nodeId, selectedBlock.block.id, { description: e.target.value })
+                  onUpdateBlock(selectedBlock.nodeId, selectedBlock.block.id, {
+                    description: e.target.value,
+                  })
                 }
                 className="bg-input border-border resize-none"
                 rows={2}
@@ -408,11 +511,10 @@ export function EditorSidebar({
             <div className="text-xs text-muted-foreground flex items-center gap-2">
               <span className="font-medium">Type:</span>
               <span
-                className={`capitalize px-2 py-0.5 rounded ${
-                  selectedBlock.block.type === "tool"
+                className={`capitalize px-2 py-0.5 rounded ${selectedBlock.block.type === "tool"
                     ? "bg-node-tool/20 text-node-tool"
                     : "bg-node-skill/20 text-node-skill"
-                }`}
+                  }`}
               >
                 {selectedBlock.block.type}
               </span>
@@ -425,7 +527,9 @@ export function EditorSidebar({
       {selectedNode && !selectedBlock && (
         <div className="border-t border-sidebar-border p-4 bg-sidebar max-h-[50vh] overflow-y-auto">
           <div className="flex items-center justify-between mb-4">
-            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Properties</Label>
+            <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              Properties
+            </Label>
             <Button
               variant="ghost"
               size="icon"
@@ -443,7 +547,9 @@ export function EditorSidebar({
               <Input
                 id="node-label"
                 value={selectedNode.data.label}
-                onChange={(e) => onUpdateNode(selectedNode.id, { label: e.target.value })}
+                onChange={(e) =>
+                  onUpdateNode(selectedNode.id, { label: e.target.value })
+                }
                 className="bg-input border-border"
               />
             </div>
@@ -454,18 +560,22 @@ export function EditorSidebar({
               <Textarea
                 id="node-description"
                 value={selectedNode.data.description}
-                onChange={(e) => onUpdateNode(selectedNode.id, { description: e.target.value })}
+                onChange={(e) =>
+                  onUpdateNode(selectedNode.id, { description: e.target.value })
+                }
                 className="bg-input border-border resize-none"
                 rows={2}
               />
             </div>
             <div className="text-xs text-muted-foreground flex items-center gap-2">
               <span className="font-medium">Type:</span>
-              <span className="capitalize px-2 py-0.5 rounded bg-secondary">{selectedNode.type}</span>
+              <span className="capitalize px-2 py-0.5 rounded bg-secondary">
+                {selectedNode.type}
+              </span>
             </div>
           </div>
         </div>
       )}
     </aside>
-  )
+  );
 }

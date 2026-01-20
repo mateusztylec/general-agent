@@ -1,52 +1,57 @@
-"use client"
+"use client";
 
-import type React from "react"
+import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
+import { Cpu, HardDrive, Sparkles, Wrench, X } from "lucide-react";
+import type React from "react";
+import { memo } from "react";
+import type { Block, BlockType, NodeData, StorageBlock } from "@/lib/types";
 
-import { memo } from "react"
-import { Handle, Position, type NodeProps } from "@xyflow/react"
-import { Cpu, Wrench, Sparkles, X, HardDrive } from "lucide-react"
-import type { NodeData, Block, BlockType, StorageBlock } from "@/lib/types"
-
-export const SubagentNode = memo(function SubagentNode({ id, data, selected }: NodeProps<NodeData>) {
+export const SubagentNode = memo(function SubagentNode({
+  id,
+  data,
+  selected,
+}: NodeProps<Node<NodeData>>) {
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    e.dataTransfer.dropEffect = "copy"
-  }
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "copy";
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const blockData = e.dataTransfer.getData("application/block")
+    e.preventDefault();
+    e.stopPropagation();
+    const blockData = e.dataTransfer.getData("application/block");
     if (blockData) {
       const event = new CustomEvent("block-drop", {
         detail: { nodeId: id, block: JSON.parse(blockData) },
-      })
-      window.dispatchEvent(event)
+      });
+      window.dispatchEvent(event);
     }
-  }
+  };
 
   const handleRemoveBlock = (blockId: string, blockType: BlockType) => {
     const event = new CustomEvent("block-remove", {
       detail: { nodeId: id, blockId, blockType },
-    })
-    window.dispatchEvent(event)
-  }
+    });
+    window.dispatchEvent(event);
+  };
 
   const handleSelectBlock = (block: Block | StorageBlock) => {
     const event = new CustomEvent("block-select", {
       detail: { nodeId: id, block },
-    })
-    window.dispatchEvent(event)
-  }
+    });
+    window.dispatchEvent(event);
+  };
 
   return (
-    <div
+    <section
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`rounded-2xl bg-card border-2 shadow-xl min-w-[220px] transition-all ${
-        selected ? "border-node-subagent ring-2 ring-node-subagent/30" : "border-border"
-      }`}
+      aria-label={`${data.label} node`}
+      className={`rounded-2xl bg-card border-2 shadow-xl min-w-[220px] transition-all ${selected
+          ? "border-node-subagent ring-2 ring-node-subagent/30"
+          : "border-border"
+        }`}
     >
       {/* Header */}
       <div className="px-4 py-3 border-b border-border/50 bg-node-subagent/10 rounded-t-2xl">
@@ -61,7 +66,9 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-sm truncate">{data.label}</div>
-            <div className="text-xs text-muted-foreground truncate">{data.description}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {data.description}
+            </div>
           </div>
         </div>
       </div>
@@ -76,18 +83,21 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
             data.tools.map((tool) => (
               <div
                 key={tool.id}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectBlock(tool)
-                }}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-tool/20 border border-node-tool/30 text-xs group cursor-pointer hover:bg-node-tool/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-tool/20 border border-node-tool/30 text-xs group hover:bg-node-tool/30 transition-colors"
               >
-                <Wrench className="h-3 w-3 text-node-tool flex-shrink-0" />
-                <span className="flex-1 truncate">{tool.label}</span>
                 <button
+                  type="button"
+                  onClick={() => handleSelectBlock(tool)}
+                  className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                >
+                  <Wrench className="h-3 w-3 text-node-tool flex-shrink-0" />
+                  <span className="flex-1 truncate">{tool.label}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveBlock(tool.id, "tool")
+                    e.stopPropagation();
+                    handleRemoveBlock(tool.id, "tool");
                   }}
                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
                 >
@@ -96,7 +106,9 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
               </div>
             ))
           ) : (
-            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">Drop tools here</div>
+            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
+              Drop tools here
+            </div>
           )}
         </div>
       </div>
@@ -111,18 +123,21 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
             data.skills.map((skill) => (
               <div
                 key={skill.id}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectBlock(skill)
-                }}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-skill/20 border border-node-skill/30 text-xs group cursor-pointer hover:bg-node-skill/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-skill/20 border border-node-skill/30 text-xs group hover:bg-node-skill/30 transition-colors"
               >
-                <Sparkles className="h-3 w-3 text-node-skill flex-shrink-0" />
-                <span className="flex-1 truncate">{skill.label}</span>
                 <button
+                  type="button"
+                  onClick={() => handleSelectBlock(skill)}
+                  className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                >
+                  <Sparkles className="h-3 w-3 text-node-skill flex-shrink-0" />
+                  <span className="flex-1 truncate">{skill.label}</span>
+                </button>
+                <button
+                  type="button"
                   onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveBlock(skill.id, "skill")
+                    e.stopPropagation();
+                    handleRemoveBlock(skill.id, "skill");
                   }}
                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
                 >
@@ -131,7 +146,9 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
               </div>
             ))
           ) : (
-            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">Drop skills here</div>
+            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
+              Drop skills here
+            </div>
           )}
         </div>
       </div>
@@ -145,28 +162,34 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
             data.storages.map((storage) => (
               <div
                 key={storage.id}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  handleSelectBlock(storage)
-                }}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 text-xs group cursor-pointer hover:bg-sky-500/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-sky-500/20 border border-sky-500/30 text-xs group hover:bg-sky-500/30 transition-colors"
               >
-                <HardDrive className="h-3 w-3 text-sky-400 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{storage.label}</div>
-                  <div className="text-[10px] text-sky-400/70 font-mono truncate">{storage.mountPath}</div>
-                </div>
-                <span
-                  className={`text-[9px] px-1.5 py-0.5 rounded ${
-                    storage.accessMode === "readonly" ? "bg-sky-500/30 text-sky-300" : "bg-amber-500/30 text-amber-300"
-                  }`}
-                >
-                  {storage.accessMode === "readonly" ? "RO" : "RW"}
-                </span>
                 <button
+                  type="button"
+                  onClick={() => handleSelectBlock(storage)}
+                  className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                >
+                  <HardDrive className="h-3 w-3 text-sky-400 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">{storage.label}</div>
+                    <div className="text-[10px] text-sky-400/70 font-mono truncate">
+                      {storage.mountPath}
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[9px] px-1.5 py-0.5 rounded ${storage.accessMode === "readonly"
+                        ? "bg-sky-500/30 text-sky-300"
+                        : "bg-amber-500/30 text-amber-300"
+                      }`}
+                  >
+                    {storage.accessMode === "readonly" ? "RO" : "RW"}
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={(e) => {
-                    e.stopPropagation()
-                    handleRemoveBlock(storage.id, "storage")
+                    e.stopPropagation();
+                    handleRemoveBlock(storage.id, "storage");
                   }}
                   className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
                 >
@@ -175,10 +198,12 @@ export const SubagentNode = memo(function SubagentNode({ id, data, selected }: N
               </div>
             ))
           ) : (
-            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">Drop storage here</div>
+            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
+              Drop storage here
+            </div>
           )}
         </div>
       </div>
-    </div>
-  )
-})
+    </section>
+  );
+});
