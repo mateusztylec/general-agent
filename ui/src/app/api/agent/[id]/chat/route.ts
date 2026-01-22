@@ -1,17 +1,19 @@
-import { streamText } from 'ai';
+import { convertToModelMessages, streamText } from 'ai';
 import { anthropic } from '@/lib/integrations/ai';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { db, schema } from '@/db';
 import { eq } from 'drizzle-orm';
+import { spawnSubagent } from '@/lib/agent/subagent-spawner';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const agentId = params.id;
+    const { id: agentId } = await params;
     const { messages } = await request.json();
+    const modelMessages = await convertToModelMessages(messages ?? []);
 
     // Load agent config from DB
     const [agent] = await db
@@ -35,7 +37,10 @@ export async function POST(
     const result = streamText({
       model: anthropic('claude-sonnet-4-5-20250929'),
       system: systemPrompt,
-      messages,
+      messages: modelMessages,
+      experimental_telemetry: {
+        isEnabled: true,
+      },
       tools: {
         spawnSubagent: {
           description: 'Spawn a subagent on E2B sandbox to execute OpenCode tasks',
@@ -46,12 +51,26 @@ export async function POST(
           execute: async ({ task, systemPrompt: subSystemPrompt }) => {
             console.log('Spawning subagent:', { task, systemPrompt: subSystemPrompt });
 
-            // TODO: Implement E2B + OpenCode spawning
-            // For now, return a mock response
+            // Get first subagent config from agent config
+            const subagents = config?.subagents || [];
+            if (subagents.length === 0) {
+              throw new Error('No subagents configured for this agent');
+            }
+
+            const subagentConfig = subagents[0]; // Use first subagent for now
+
+            // Override system prompt if provided
+            if (subSystemPrompt) {
+              subagentConfig.systemPrompt = subSystemPrompt;
+            }
+
+            // Spawn subagent on E2B
+            const result = await spawnSubagent(subagentConfig, task);
+
             return {
               status: 'success',
-              result: `Subagent spawned for task: ${task}`,
-              output: 'Mock output - E2B integration coming soon',
+              sandboxId: result.sandboxId,
+              output: result.output,
             };
           },
         },
@@ -65,7 +84,7 @@ export async function POST(
       },
     });
 
-    return result.toTextStreamResponse();
+    return result.toUIMessageStreamResponse();
 
   } catch (error) {
     console.error('Chat API error:', error);

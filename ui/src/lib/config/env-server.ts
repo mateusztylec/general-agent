@@ -12,6 +12,8 @@ export const serverEnv = createEnv({
     ANTHROPIC_API_KEY: z.string().min(1),
     DATABASE_URL: z.string().min(1),
     E2B_API_KEY: z.string().min(1),
+    LANGFUSE_PUBLIC_KEY: z.string().optional(),
+    LANGFUSE_SECRET_KEY: z.string().optional(),
   },
 
   /*
@@ -24,5 +26,7 @@ export const serverEnv = createEnv({
     DATABASE_URL: process.env.DATABASE_URL,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     E2B_API_KEY: process.env.E2B_API_KEY,
+    LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
   },
 });
