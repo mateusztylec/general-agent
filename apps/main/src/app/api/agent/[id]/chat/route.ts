@@ -2,7 +2,7 @@ import { convertToModelMessages, streamText } from 'ai';
 import { anthropic } from '@/lib/integrations/ai';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, schema } from '@/db';
+import { db, schema } from '@general-agent/database';
 import { eq } from 'drizzle-orm';
 import { spawnSubagent } from '@/lib/agent/subagent-spawner';
 import { parseAgentConfig } from '@/lib/config/agent-config-types';

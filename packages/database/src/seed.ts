@@ -1,4 +1,4 @@
-import dotenv from 'dotenv';
+import * as dotenv from 'dotenv';
 import { db, schema } from './index';
 
 // Load environment variables
@@ -46,6 +46,10 @@ async function seed() {
         ],
       },
     }).returning();
+
+    if (!agent) {
+      throw new Error('Failed to create test agent');
+    }
 
     console.log('✅ Created test agent:', {
       id: agent.id,
