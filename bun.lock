@@ -14,6 +14,7 @@
         "@hookform/resolvers": "^3.10.0",
         "@langfuse/otel": "^4.5.1",
         "@langfuse/tracing": "^4.5.1",
+        "@opencode-ai/sdk": "^1.1.32",
         "@opentelemetry/sdk-node": "^0.211.0",
         "@opentelemetry/sdk-trace-node": "^2.5.0",
         "@radix-ui/react-accordion": "1.2.2",
@@ -311,6 +312,8 @@
     "@next/swc-win32-arm64-msvc": ["@next/swc-win32-arm64-msvc@16.1.4", "", { "os": "win32", "cpu": "arm64" }, "sha512-MCrXxrTSE7jPN1NyXJr39E+aNFBrQZtO154LoCz7n99FuKqJDekgxipoodLNWdQP7/DZ5tKMc/efybx1l159hw=="],
 
     "@next/swc-win32-x64-msvc": ["@next/swc-win32-x64-msvc@16.1.4", "", { "os": "win32", "cpu": "x64" }, "sha512-JSVlm9MDhmTXw/sO2PE/MRj+G6XOSMZB+BcZ0a7d6KwVFZVpkHcb2okyoYFBaco6LeiL53BBklRlOrDDbOeE5w=="],
+
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@1.1.32", "", {}, "sha512-BsEzZvXUYwtZNgJBiwbkhmov1LBW0Cwxn3WWjGw9xK1HJGK9NdZqfYqYbdQG9aen3j7gshqxcU5jTSZTzOSn1A=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 

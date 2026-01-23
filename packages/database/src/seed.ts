@@ -28,6 +28,20 @@ async function seed() {
             description: 'Use when code execution or file manipulation is needed',
             skills: [], // No skills for now
             storage: [],
+            tools: {
+              "write": true,
+              "read": true,
+              "grep": true,
+              "glob": true,
+              "list": true,
+              "lsp": true,
+              "patch": true,
+              "skill": true,
+              "todowrite": true,
+              "todoread": true,
+              "webfetch": true,
+              "question": true,
+            }
           },
         ],
       },

@@ -1,0 +1,12 @@
+{
+    "model": "provider:model-name",
+    "small_model": "provider:small-model-name",
+    "tools": {
+        "bash": true,
+        "file": true
+    },
+    "permission": {
+        "bash": "allow",
+        "file": "allow"
+    }
+}

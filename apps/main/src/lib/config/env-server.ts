@@ -14,6 +14,8 @@ export const serverEnv = createEnv({
     E2B_API_KEY: z.string().min(1),
     LANGFUSE_PUBLIC_KEY: z.string().optional(),
     LANGFUSE_SECRET_KEY: z.string().optional(),
+    VERCEL_AI_GATEWAY_API_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1),
   },
 
   /*
@@ -28,5 +30,7 @@ export const serverEnv = createEnv({
     E2B_API_KEY: process.env.E2B_API_KEY,
     LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
     LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
+    VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
   },
 });
