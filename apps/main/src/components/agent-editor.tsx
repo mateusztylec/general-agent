@@ -19,25 +19,35 @@ import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import { Save } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 import { EditorSidebar } from "@/components/editor-sidebar";
 import { AgentNode } from "@/components/nodes/agent-node";
 import { SubagentNode } from "@/components/nodes/subagent-node";
+import { AgentPropertySheet } from "@/components/sheets/agent-property-sheet";
+import { SubagentPropertySheet } from "@/components/sheets/subagent-property-sheet";
+import { ToolPropertySheet } from "@/components/sheets/tool-property-sheet";
+import { SkillPropertySheet } from "@/components/sheets/skill-property-sheet";
+import { StoragePropertySheet } from "@/components/sheets/storage-property-sheet";
 import { Button } from "@/components/ui/button";
 import type {
-  Block,
+  AnyBlock,
   BlockType,
   NodeData,
   NodeType,
   SelectedBlock,
+  SkillBlock,
   StorageBlock,
+  SubagentToolBlock,
   UpdateBlockData,
 } from "@/lib/types";
 import type {
   AgentConfig,
+  OpencodePermissionMap,
   OpencodeToolsMap,
   SubagentConfig,
 } from "@general-agent/agent/config-types";
+import { SUBAGENT_TOOL_DEFINITIONS } from "@general-agent/agent/config-types";
 
 const nodeTypes = {
   agent: AgentNode,
@@ -72,15 +82,29 @@ function getNextNodeId(nodes: Node<NodeData>[]) {
   return Math.max(1, maxId + 1);
 }
 
-function blocksToTools(blocks: Block[]): OpencodeToolsMap {
+function blocksToTools(blocks: SubagentToolBlock[]): OpencodeToolsMap {
   const tools: OpencodeToolsMap = {} as OpencodeToolsMap;
   for (const block of blocks) {
-    tools[block.label as keyof OpencodeToolsMap] = true;
+    // Only add if tool is configured (toolName is not empty)
+    if (block.toolName && block.toolName in SUBAGENT_TOOL_DEFINITIONS) {
+      tools[block.toolName] = true;
+    }
   }
   return tools;
 }
 
-function blocksToSkills(blocks: Block[]): string[] {
+function blocksToPermissions(blocks: SubagentToolBlock[]): OpencodePermissionMap {
+  const permissions: OpencodePermissionMap = {} as OpencodePermissionMap;
+  for (const block of blocks) {
+    // Only add if tool is configured (toolName is not empty)
+    if (block.toolName && block.toolName in SUBAGENT_TOOL_DEFINITIONS) {
+      permissions[block.toolName] = "allow"; // Default to allow
+    }
+  }
+  return permissions;
+}
+
+function blocksToSkills(blocks: SkillBlock[]): string[] {
   return blocks.map((block) => block.label);
 }
 
@@ -112,6 +136,7 @@ function convertToAgentConfig(
     systemPrompt: node.data.description,
     description: node.data.description,
     tools: blocksToTools(node.data.tools),
+    permission: blocksToPermissions(node.data.tools),
     skills: blocksToSkills(node.data.skills),
     storage: blocksToStorage(node.data.storages),
   }));
@@ -148,9 +173,14 @@ function EditorFlow({
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
-    "idle",
-  );
+
+  // Sheet state management
+  const [openSheet, setOpenSheet] = useState<{
+    type: 'agent' | 'subagent' | 'tool' | 'skill' | 'storage';
+    nodeId?: string;
+    blockId?: string;
+  } | null>(null);
+
   const { screenToFlowPosition } = useReactFlow();
   const nextNodeId = useRef(getNextNodeId(initialNodes));
 
@@ -165,7 +195,6 @@ function EditorFlow({
 
   const handleSave = useCallback(async () => {
     setIsSaving(true);
-    setSaveStatus("idle");
     try {
       const config = convertToAgentConfig(nodes, agentName);
       const response = await fetch(`/api/agent/${agentId}`, {
@@ -175,15 +204,22 @@ function EditorFlow({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to save");
+        let message = `Save failed (${response.status})`;
+        try {
+          const payload = (await response.json()) as { error?: string };
+          if (payload?.error) {
+            message = payload.error;
+          }
+        } catch {
+          // Ignore JSON parse errors and keep default message
+        }
+        throw new Error(message);
       }
 
-      setSaveStatus("success");
-      setTimeout(() => setSaveStatus("idle"), 2000);
+      toast.success("Saved");
     } catch (error) {
       console.error("Save error:", error);
-      setSaveStatus("error");
-      setTimeout(() => setSaveStatus("idle"), 3000);
+      toast.error(error instanceof Error ? error.message : "Save failed");
     } finally {
       setIsSaving(false);
     }
@@ -191,7 +227,7 @@ function EditorFlow({
 
   useEffect(() => {
     const handleBlockDrop = (
-      e: CustomEvent<{ nodeId: string; block: Block | StorageBlock }>,
+      e: CustomEvent<{ nodeId: string; block: AnyBlock }>,
     ) => {
       const { nodeId, block } = e.detail;
       setNodes((nds) =>
@@ -209,14 +245,24 @@ function EditorFlow({
                 },
               };
             }
-            const key = block.type === "tool" ? "tools" : "skills";
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                [key]: [...(node.data[key] || []), block],
-              },
-            };
+            if (block.type === "tool") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  tools: [...(node.data.tools || []), block as SubagentToolBlock],
+                },
+              };
+            }
+            if (block.type === "skill") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  skills: [...(node.data.skills || []), block as SkillBlock],
+                },
+              };
+            }
           }
           return node;
         }),
@@ -247,7 +293,7 @@ function EditorFlow({
               data: {
                 ...node.data,
                 [key]: (node.data[key] || []).filter(
-                  (b: Block) => b.id !== blockId,
+                  (b: AnyBlock) => b.id !== blockId,
                 ),
               },
             };
@@ -259,11 +305,20 @@ function EditorFlow({
     };
 
     const handleBlockSelect = (
-      e: CustomEvent<{ nodeId: string; block: Block | StorageBlock }>,
+      e: CustomEvent<{ nodeId: string; block: AnyBlock }>,
     ) => {
       const { nodeId, block } = e.detail;
       setSelectedBlock({ nodeId, block });
       setSelectedNode(null);
+
+      // Open appropriate sheet based on block type
+      if (block.type === 'tool') {
+        setOpenSheet({ type: 'tool', nodeId, blockId: block.id });
+      } else if (block.type === 'skill') {
+        setOpenSheet({ type: 'skill', nodeId, blockId: block.id });
+      } else if (block.type === 'storage') {
+        setOpenSheet({ type: 'storage', nodeId, blockId: block.id });
+      }
     };
 
     window.addEventListener("block-drop", handleBlockDrop as EventListener);
@@ -315,6 +370,13 @@ function EditorFlow({
     (_: React.MouseEvent, node: Node<NodeData>) => {
       setSelectedNode(node);
       setSelectedBlock(null);
+
+      // Open appropriate sheet based on node type
+      if (node.type === 'agent') {
+        setOpenSheet({ type: 'agent', nodeId: node.id });
+      } else if (node.type === 'subagent') {
+        setOpenSheet({ type: 'subagent', nodeId: node.id });
+      }
     },
     [],
   );
@@ -322,6 +384,7 @@ function EditorFlow({
   const onPaneClick = useCallback(() => {
     setSelectedNode(null);
     setSelectedBlock(null);
+    setOpenSheet(null);
   }, []);
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -421,10 +484,10 @@ function EditorFlow({
               ...node,
               data: {
                 ...node.data,
-                tools: node.data.tools.map((b: Block) =>
+                tools: node.data.tools.map((b: SubagentToolBlock) =>
                   b.id === blockId ? { ...b, ...data } : b,
                 ),
-                skills: node.data.skills.map((b: Block) =>
+                skills: node.data.skills.map((b: SkillBlock) =>
                   b.id === blockId ? { ...b, ...data } : b,
                 ),
                 storages: node.data.storages.map((s: StorageBlock) =>
@@ -446,11 +509,16 @@ function EditorFlow({
   );
 
   const deleteBlock = useCallback(
-    (nodeId: string, blockId: string, blockType: BlockType) => {
+    (nodeId: string, blockId: string, blockType?: BlockType) => {
       setNodes((nds) =>
         nds.map((node) => {
           if (node.id === nodeId) {
-            if (blockType === "storage") {
+            // If no blockType provided, try to find it
+            const type = blockType ||
+              (node.data.storages.find(s => s.id === blockId) ? 'storage' :
+                node.data.tools.find(t => t.id === blockId) ? 'tool' : 'skill');
+
+            if (type === "storage") {
               return {
                 ...node,
                 data: {
@@ -461,21 +529,34 @@ function EditorFlow({
                 },
               };
             }
-            const key = blockType === "tool" ? "tools" : "skills";
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                [key]: (node.data[key] || []).filter(
-                  (b: Block) => b.id !== blockId,
-                ),
-              },
-            };
+            if (type === "tool") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  tools: (node.data.tools || []).filter(
+                    (b: SubagentToolBlock) => b.id !== blockId,
+                  ),
+                },
+              };
+            }
+            if (type === "skill") {
+              return {
+                ...node,
+                data: {
+                  ...node.data,
+                  skills: (node.data.skills || []).filter(
+                    (b: SkillBlock) => b.id !== blockId,
+                  ),
+                },
+              };
+            }
           }
           return node;
         }),
       );
       setSelectedBlock(null);
+      setOpenSheet(null);
     },
     [setNodes],
   );
@@ -487,20 +568,34 @@ function EditorFlow({
         eds.filter((edge) => edge.source !== nodeId && edge.target !== nodeId),
       );
       setSelectedNode(null);
+      setOpenSheet(null);
     },
     [setNodes, setEdges],
   );
 
+  // Helper to get current node/block for sheets
+  const getCurrentNode = () => {
+    if (!openSheet?.nodeId) return null;
+    return nodes.find(n => n.id === openSheet.nodeId) || null;
+  };
+
+  const getCurrentBlock = (): AnyBlock | null => {
+    if (!openSheet?.nodeId || !openSheet?.blockId) return null;
+    const node = nodes.find(n => n.id === openSheet.nodeId);
+    if (!node) return null;
+
+    // Search in tools, skills, and storages
+    const allBlocks: AnyBlock[] = [
+      ...node.data.tools,
+      ...node.data.skills,
+      ...node.data.storages,
+    ];
+    return allBlocks.find(b => b.id === openSheet.blockId) || null;
+  };
+
   return (
     <div className="flex h-full w-full">
-      <EditorSidebar
-        selectedNode={selectedNode}
-        selectedBlock={selectedBlock}
-        onUpdateNode={updateNodeData}
-        onUpdateBlock={updateBlockData}
-        onDeleteNode={deleteNode}
-        onDeleteBlock={deleteBlock}
-      />
+      <EditorSidebar />
       <div ref={reactFlowWrapper} className="flex-1 h-full relative">
         <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
           <Button
@@ -512,16 +607,6 @@ function EditorFlow({
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? "Saving..." : "Save"}
           </Button>
-          {saveStatus === "success" && (
-            <div className="text-xs text-green-600 bg-green-50 border border-green-200 px-3 py-1.5 rounded-md shadow-sm">
-              Saved!
-            </div>
-          )}
-          {saveStatus === "error" && (
-            <div className="text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-1.5 rounded-md shadow-sm">
-              Save failed
-            </div>
-          )}
         </div>
         <ReactFlow<Node<NodeData>, Edge>
           nodes={nodes}
@@ -548,6 +633,49 @@ function EditorFlow({
           />
         </ReactFlow>
       </div>
+
+      {/* Property Sheets */}
+      <AgentPropertySheet
+        node={openSheet?.type === 'agent' ? getCurrentNode() : null}
+        isOpen={Boolean(openSheet?.type === 'agent')}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateNodeData}
+      />
+
+      <SubagentPropertySheet
+        node={openSheet?.type === 'subagent' ? getCurrentNode() : null}
+        isOpen={Boolean(openSheet?.type === 'subagent')}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateNodeData}
+      />
+
+      <ToolPropertySheet
+        nodeId={openSheet?.type === 'tool' ? openSheet.nodeId || null : null}
+        block={openSheet?.type === 'tool' ? getCurrentBlock() as SubagentToolBlock | null : null}
+        node={openSheet?.type === 'tool' ? getCurrentNode() : null}
+        isOpen={Boolean(openSheet?.type === 'tool')}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateBlockData}
+        onDelete={deleteBlock}
+      />
+
+      <SkillPropertySheet
+        nodeId={openSheet?.type === 'skill' ? openSheet.nodeId || null : null}
+        block={openSheet?.type === 'skill' ? getCurrentBlock() as SkillBlock | null : null}
+        isOpen={Boolean(openSheet?.type === 'skill')}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateBlockData}
+        onDelete={deleteBlock}
+      />
+
+      <StoragePropertySheet
+        nodeId={openSheet?.type === 'storage' ? openSheet.nodeId || null : null}
+        block={openSheet?.type === 'storage' ? getCurrentBlock() as StorageBlock | null : null}
+        isOpen={Boolean(openSheet?.type === 'storage')}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateBlockData}
+        onDelete={deleteBlock}
+      />
     </div>
   );
 }

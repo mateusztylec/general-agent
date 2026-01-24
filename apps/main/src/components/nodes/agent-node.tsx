@@ -4,10 +4,16 @@ import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
 import { Bot, HardDrive, Sparkles, Wrench, X } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
-import type { Block, BlockType, NodeData, StorageBlock } from "@/lib/types";
+import type {
+  AnyBlock,
+  BlockType,
+  NodeData,
+  SkillBlock,
+  SubagentToolBlock,
+} from "@/lib/types";
 
 interface AgentNodeProps extends NodeProps<Node<NodeData>> {
-  onDropBlock?: (nodeId: string, block: Block) => void;
+  onDropBlock?: (nodeId: string, block: AnyBlock) => void;
   onRemoveBlock?: (
     nodeId: string,
     blockId: string,
@@ -45,7 +51,8 @@ export const AgentNode = memo(function AgentNode({
     window.dispatchEvent(event);
   };
 
-  const handleSelectBlock = (block: Block | StorageBlock) => {
+  const handleSelectBlock = (e: React.MouseEvent, block: AnyBlock) => {
+    e.stopPropagation(); // Prevent node click from firing
     const event = new CustomEvent("block-select", {
       detail: { nodeId: id, block },
     });
@@ -82,43 +89,15 @@ export const AgentNode = memo(function AgentNode({
         </div>
       </div>
 
-      {/* Tools section */}
-      <div className="px-3 py-2 border-b border-dashed border-border/50">
+      {/* Tools section - disabled for main agent (will implement main agent tools later) */}
+      <div className="px-3 py-2 border-b border-dashed border-border/50 opacity-50">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
           <Wrench className="h-3 w-3" /> Tools
         </div>
         <div className="space-y-1.5 min-h-[32px]">
-          {data.tools?.length > 0 ? (
-            data.tools.map((tool) => (
-              <div
-                key={tool.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-2/20 border border-chart-2/30 text-xs group hover:bg-chart-2/30 transition-colors"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSelectBlock(tool)}
-                  className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
-                >
-                  <Wrench className="h-3 w-3 text-chart-2 flex-shrink-0" />
-                  <span className="flex-1 truncate">{tool.label}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveBlock(tool.id, "tool");
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                </button>
-              </div>
-            ))
-          ) : (
-            <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
-              Drop tools here
-            </div>
-          )}
+          <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
+            Coming soon
+          </div>
         </div>
       </div>
 
@@ -129,14 +108,14 @@ export const AgentNode = memo(function AgentNode({
         </div>
         <div className="space-y-1.5 min-h-[32px]">
           {data.skills?.length > 0 ? (
-            data.skills.map((skill) => (
+            data.skills.map((skill: SkillBlock) => (
               <div
                 key={skill.id}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-4/20 border border-chart-4/30 text-xs group hover:bg-chart-4/30 transition-colors"
               >
                 <button
                   type="button"
-                  onClick={() => handleSelectBlock(skill)}
+                  onClick={(e) => handleSelectBlock(e, skill)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
                   <Sparkles className="h-3 w-3 text-chart-4 flex-shrink-0" />
@@ -175,7 +154,7 @@ export const AgentNode = memo(function AgentNode({
               >
                 <button
                   type="button"
-                  onClick={() => handleSelectBlock(storage)}
+                  onClick={(e) => handleSelectBlock(e, storage)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
                   <HardDrive className="h-3 w-3 text-sky-400 flex-shrink-0" />

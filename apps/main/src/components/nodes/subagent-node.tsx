@@ -1,10 +1,18 @@
 "use client";
 
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { Cpu, HardDrive, Sparkles, Wrench, X } from "lucide-react";
+import { AlertCircle, Cpu, HardDrive, Sparkles, Wrench, X } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
-import type { Block, BlockType, NodeData, StorageBlock } from "@/lib/types";
+import type {
+  AnyBlock,
+  BlockType,
+  NodeData,
+  SkillBlock,
+  StorageBlock,
+  SubagentToolBlock,
+} from "@/lib/types";
+import { SUBAGENT_TOOL_DEFINITIONS } from "@general-agent/agent/config-types";
 
 export const SubagentNode = memo(function SubagentNode({
   id,
@@ -36,7 +44,8 @@ export const SubagentNode = memo(function SubagentNode({
     window.dispatchEvent(event);
   };
 
-  const handleSelectBlock = (block: Block | StorageBlock) => {
+  const handleSelectBlock = (e: React.MouseEvent, block: AnyBlock) => {
+    e.stopPropagation(); // Prevent node click from firing
     const event = new CustomEvent("block-select", {
       detail: { nodeId: id, block },
     });
@@ -80,31 +89,60 @@ export const SubagentNode = memo(function SubagentNode({
         </div>
         <div className="space-y-1.5 min-h-[32px]">
           {data.tools?.length > 0 ? (
-            data.tools.map((tool) => (
-              <div
-                key={tool.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-2/20 border border-chart-2/30 text-xs group hover:bg-chart-2/30 transition-colors"
-              >
-                <button
-                  type="button"
-                  onClick={() => handleSelectBlock(tool)}
-                  className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+            data.tools.map((tool) => {
+              // Defensive: Check if tool has the new format (toolName) or old format (label)
+              const isConfigured = tool.toolName && tool.toolName !== "";
+              const isValidTool = isConfigured && tool.toolName in SUBAGENT_TOOL_DEFINITIONS;
+
+              // Handle old data, invalid data, or unconfigured tools
+              const toolLabel = isValidTool
+                ? SUBAGENT_TOOL_DEFINITIONS[tool.toolName].name
+                : isConfigured
+                  ? `⚠️ Unknown: ${tool.toolName}` // Invalid tool name
+                  : "⚠️ Configure tool"; // Empty toolName
+
+              const isInvalid = !isValidTool && isConfigured;
+
+              return (
+                <div
+                  key={tool.id}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs group hover:bg-chart-2/30 transition-colors ${
+                    isValidTool
+                      ? "bg-chart-2/20 border border-chart-2/30"
+                      : "bg-destructive/10 border border-destructive/40"
+                  }`}
                 >
-                  <Wrench className="h-3 w-3 text-chart-2 flex-shrink-0" />
-                  <span className="flex-1 truncate">{tool.label}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleRemoveBlock(tool.id, "tool");
-                  }}
-                  className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
-                >
-                  <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                </button>
-              </div>
-            ))
+                  <button
+                    type="button"
+                    onClick={(e) => handleSelectBlock(e, tool)}
+                    className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                  >
+                    {isValidTool ? (
+                      <Wrench className="h-3 w-3 text-chart-2 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="h-3 w-3 text-destructive flex-shrink-0" />
+                    )}
+                    <span
+                      className={`flex-1 truncate ${
+                        isValidTool ? "" : "text-destructive italic"
+                      }`}
+                    >
+                      {toolLabel}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemoveBlock(tool.id, "tool");
+                    }}
+                    className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
+                  >
+                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                  </button>
+                </div>
+              );
+            })
           ) : (
             <div className="text-[10px] text-muted-foreground/50 italic px-2 py-1">
               Drop tools here
@@ -120,14 +158,14 @@ export const SubagentNode = memo(function SubagentNode({
         </div>
         <div className="space-y-1.5 min-h-[32px]">
           {data.skills?.length > 0 ? (
-            data.skills.map((skill) => (
+            data.skills.map((skill: SkillBlock) => (
               <div
                 key={skill.id}
                 className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-4/20 border border-chart-4/30 text-xs group hover:bg-chart-4/30 transition-colors"
               >
                 <button
                   type="button"
-                  onClick={() => handleSelectBlock(skill)}
+                  onClick={(e) => handleSelectBlock(e, skill)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
                   <Sparkles className="h-3 w-3 text-chart-4 flex-shrink-0" />
@@ -166,7 +204,7 @@ export const SubagentNode = memo(function SubagentNode({
               >
                 <button
                   type="button"
-                  onClick={() => handleSelectBlock(storage)}
+                  onClick={(e) => handleSelectBlock(e, storage)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
                   <HardDrive className="h-3 w-3 text-sky-400 flex-shrink-0" />

@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import { z } from 'zod';
 import { db } from '@general-agent/database/client';
 import { updateAgent } from '@general-agent/database/queries/agents';
 import { auth } from '@/lib/auth';
@@ -13,6 +14,7 @@ export async function PATCH(
     const session = await auth.api.getSession({
       headers: await headers(),
     });
+
 
     if (!session) {
       return new Response(
@@ -29,8 +31,12 @@ export async function PATCH(
     try {
       parseAgentConfig(config);
     } catch (error) {
+      const details = error instanceof z.ZodError ? error.errors : String(error);
       return new Response(
-        JSON.stringify({ error: 'Invalid agent config format' }),
+        JSON.stringify({ 
+          error: 'Invalid agent config format',
+          details 
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }

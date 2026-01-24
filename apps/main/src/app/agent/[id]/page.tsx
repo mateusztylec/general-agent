@@ -7,24 +7,28 @@ import { db } from "@general-agent/database/client";
 import { getAgentById } from "@general-agent/database/queries/agents";
 import { parseAgentConfig } from "@general-agent/agent/config-types";
 import type { AgentConfig, OpencodeToolsMap } from "@general-agent/agent/config-types";
-import type { Block, NodeData, StorageBlock } from "@/lib/types";
+import type {
+  NodeData,
+  SkillBlock,
+  StorageBlock,
+  SubagentToolBlock,
+} from "@/lib/types";
 import { auth } from "@/lib/auth";
 
 const MAIN_NODE_ID = "agent-1";
 
-function toolsToBlocks(tools?: OpencodeToolsMap): Block[] {
+function toolsToBlocks(tools?: OpencodeToolsMap): SubagentToolBlock[] {
   if (!tools) return [];
   return Object.entries(tools)
     .filter(([, enabled]) => enabled)
     .map(([toolName]) => ({
       id: `tool-${toolName}`,
       type: "tool",
-      label: toolName,
-      description: "Enabled tool",
+      toolName: toolName as SubagentToolBlock["toolName"],
     }));
 }
 
-function skillsToBlocks(skills?: string[]): Block[] {
+function skillsToBlocks(skills?: string[]): SkillBlock[] {
   if (!skills) return [];
   return skills.map((skill, index) => ({
     id: `skill-${index + 1}`,

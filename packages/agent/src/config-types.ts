@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 export const OpencodePermissionPolicySchema = z.enum(["allow", "deny"]);
-export const OpencodePermissionMapSchema = z.record(
-  z.string(),
-  OpencodePermissionPolicySchema
-);
+
 export const AvailableToolSchema = z.enum([
   "bash",
   "edit",
@@ -21,6 +18,11 @@ export const AvailableToolSchema = z.enum([
   "webfetch",
   "question",
 ]);
+
+export const OpencodePermissionMapSchema = z.record(
+  AvailableToolSchema,
+  OpencodePermissionPolicySchema
+);
 
 export const OpencodeToolsMapSchema = z.record(AvailableToolSchema, z.boolean());
 
@@ -64,6 +66,72 @@ export const AgentConfigSchema = z.object({
   mainAgent: MainAgentConfigSchema,
   subagents: z.array(SubagentConfigSchema),
 });
+
+/**
+ * Subagent tool definitions with descriptions
+ * These are the OpenCode tools available to subagents running in sandboxes
+ */
+export const SUBAGENT_TOOL_DEFINITIONS = {
+  bash: {
+    name: "bash",
+    description: "Execute bash commands in the sandbox",
+  },
+  edit: {
+    name: "edit",
+    description: "Edit existing files",
+  },
+  write: {
+    name: "write",
+    description: "Write or create new files",
+  },
+  read: {
+    name: "read",
+    description: "Read file contents",
+  },
+  grep: {
+    name: "grep",
+    description: "Search for patterns in files",
+  },
+  glob: {
+    name: "glob",
+    description: "Find files matching patterns",
+  },
+  list: {
+    name: "list",
+    description: "List directory contents",
+  },
+  lsp: {
+    name: "lsp",
+    description: "Language server protocol operations",
+  },
+  patch: {
+    name: "patch",
+    description: "Apply patches to files",
+  },
+  skill: {
+    name: "skill",
+    description: "Execute custom skills",
+  },
+  todowrite: {
+    name: "todowrite",
+    description: "Write todo items",
+  },
+  todoread: {
+    name: "todoread",
+    description: "Read todo items",
+  },
+  webfetch: {
+    name: "webfetch",
+    description: "Fetch content from the web",
+  },
+  question: {
+    name: "question",
+    description: "Ask questions to the user",
+  },
+} as const satisfies Record<
+  z.infer<typeof AvailableToolSchema>,
+  { name: string; description: string }
+>;
 
 export type OpencodePermissionPolicy = z.infer<
   typeof OpencodePermissionPolicySchema
