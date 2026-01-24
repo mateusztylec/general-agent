@@ -49,19 +49,19 @@ export const SubagentNode = memo(function SubagentNode({
       onDrop={handleDrop}
       aria-label={`${data.label} node`}
       className={`rounded-2xl bg-card border-2 shadow-xl min-w-[220px] transition-all ${selected
-          ? "border-node-subagent ring-2 ring-node-subagent/30"
+          ? "border-chart-1 ring-2 ring-chart-1/30"
           : "border-border"
         }`}
     >
       {/* Header */}
-      <div className="px-4 py-3 border-b border-border/50 bg-node-subagent/10 rounded-t-2xl">
+      <div className="px-4 py-3 border-b border-border/50 bg-chart-1/10 rounded-t-2xl">
         <Handle
           type="target"
           position={Position.Top}
-          className="!w-3 !h-3 !bg-node-subagent !border-2 !border-background"
+          className="!w-3 !h-3 !bg-chart-1 !border-2 !border-background"
         />
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-lg bg-node-subagent text-background">
+          <div className="p-2 rounded-lg bg-chart-1 text-background">
             <Cpu className="h-5 w-5" />
           </div>
           <div className="flex-1 min-w-0">
@@ -83,14 +83,14 @@ export const SubagentNode = memo(function SubagentNode({
             data.tools.map((tool) => (
               <div
                 key={tool.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-tool/20 border border-node-tool/30 text-xs group hover:bg-node-tool/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-2/20 border border-chart-2/30 text-xs group hover:bg-chart-2/30 transition-colors"
               >
                 <button
                   type="button"
                   onClick={() => handleSelectBlock(tool)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
-                  <Wrench className="h-3 w-3 text-node-tool flex-shrink-0" />
+                  <Wrench className="h-3 w-3 text-chart-2 flex-shrink-0" />
                   <span className="flex-1 truncate">{tool.label}</span>
                 </button>
                 <button
@@ -123,14 +123,14 @@ export const SubagentNode = memo(function SubagentNode({
             data.skills.map((skill) => (
               <div
                 key={skill.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-node-skill/20 border border-node-skill/30 text-xs group hover:bg-node-skill/30 transition-colors"
+                className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-chart-4/20 border border-chart-4/30 text-xs group hover:bg-chart-4/30 transition-colors"
               >
                 <button
                   type="button"
                   onClick={() => handleSelectBlock(skill)}
                   className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
                 >
-                  <Sparkles className="h-3 w-3 text-node-skill flex-shrink-0" />
+                  <Sparkles className="h-3 w-3 text-chart-4 flex-shrink-0" />
                   <span className="flex-1 truncate">{skill.label}</span>
                 </button>
                 <button

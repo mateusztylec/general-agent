@@ -57,13 +57,13 @@ const nodeItems: {
       type: "agent",
       label: "Main Agent",
       icon: <Bot className="h-4 w-4" />,
-      color: "bg-node-agent",
+      color: "bg-primary",
     },
     {
       type: "subagent",
       label: "Subagent",
       icon: <Cpu className="h-4 w-4" />,
-      color: "bg-node-subagent",
+      color: "bg-chart-1",
     },
   ];
 
@@ -77,13 +77,13 @@ const blockItems: {
       type: "tool",
       label: "Tool",
       icon: <Wrench className="h-4 w-4" />,
-      color: "bg-node-tool",
+      color: "bg-chart-2",
     },
     {
       type: "skill",
       label: "Skill",
       icon: <Sparkles className="h-4 w-4" />,
-      color: "bg-node-skill",
+      color: "bg-chart-4",
     },
     {
       type: "storage",
@@ -512,8 +512,8 @@ export function EditorSidebar({
               <span className="font-medium">Type:</span>
               <span
                 className={`capitalize px-2 py-0.5 rounded ${selectedBlock.block.type === "tool"
-                    ? "bg-node-tool/20 text-node-tool"
-                    : "bg-node-skill/20 text-node-skill"
+                    ? "bg-chart-2/20 text-chart-2"
+                    : "bg-chart-4/20 text-chart-4"
                   }`}
               >
                 {selectedBlock.block.type}

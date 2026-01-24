@@ -1,0 +1,19 @@
+{
+  "name": "@general-agent/agent",
+  "private": true,
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome format --write ."
+  },
+  "exports": {
+    "./config-types": "./src/config-types.ts",
+    "./opencode-config": "./src/opencode-config.ts"
+  },
+  "devDependencies": {
+    "@general-agent/tsconfig": "workspace:*",
+    "@biomejs/biome": "^1.9.4"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

@@ -6,7 +6,7 @@ import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
 import { eq, and } from 'drizzle-orm';
 import { spawnSubagent } from '@/lib/agent/subagent-spawner';
-import { parseAgentConfig } from '@/lib/config/agent-config-types';
+import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 

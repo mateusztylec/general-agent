@@ -1,5 +1,5 @@
-import type { SubagentConfig } from "@/lib/config/agent-config-types";
-import { OpencodeConfigCoreSchema } from "@/lib/config/agent-config-types";
+import type { SubagentConfig } from "@agent/config-types";
+import { OpencodeConfigCoreSchema } from "@agent/config-types";
 
 function omitUndefined<T extends Record<string, unknown>>(value: T) {
   return Object.fromEntries(

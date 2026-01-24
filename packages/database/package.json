@@ -4,6 +4,7 @@
     "scripts": {
         "lint": "biome check .",
         "lint:fix": "biome format --write .",
+        "db:seed": "tsx src/seed.ts",
         "db:generate": "drizzle-kit generate",
         "db:migrate": "drizzle-kit migrate",
         "db:studio": "drizzle-kit studio"

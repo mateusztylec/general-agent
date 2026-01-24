@@ -1,0 +1,23 @@
+{
+  "name": "@general-agent/sandbox",
+  "private": true,
+  "scripts": {
+    "lint": "biome check .",
+    "lint:fix": "biome format --write .",
+    "build-template": "tsx --tsconfig tsconfig.json scripts/build-template.ts"
+  },
+  "exports": {
+    "./spawner": "./src/spawner.ts",
+    "./template": "./src/template.ts"
+  },
+  "dependencies": {
+    "@general-agent/agent": "workspace:*",
+    "@opencode-ai/sdk": "^1.1.32",
+    "e2b": "^2.10.2"
+  },
+  "devDependencies": {
+    "@general-agent/tsconfig": "workspace:*",
+    "@biomejs/biome": "^1.9.4",
+    "tsx": "^4.19.2"
+  }
+}
