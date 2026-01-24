@@ -15,6 +15,13 @@
       "when": 1769215600870,
       "tag": "0001_cultured_mantis",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769288499401,
+      "tag": "0002_keen_power_man",
+      "breakpoints": true
     }
   ]
 }

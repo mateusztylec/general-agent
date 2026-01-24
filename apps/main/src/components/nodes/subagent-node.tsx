@@ -90,18 +90,40 @@ export const SubagentNode = memo(function SubagentNode({
         <div className="space-y-1.5 min-h-[32px]">
           {data.tools?.length > 0 ? (
             data.tools.map((tool) => {
-              // Defensive: Check if tool has the new format (toolName) or old format (label)
-              const isConfigured = tool.toolName && tool.toolName !== "";
-              const isValidTool = isConfigured && tool.toolName in SUBAGENT_TOOL_DEFINITIONS;
+              if (!tool.toolName) {
+                const toolLabel = "⚠️ Configure tool";
 
-              // Handle old data, invalid data, or unconfigured tools
-              const toolLabel = isValidTool
-                ? SUBAGENT_TOOL_DEFINITIONS[tool.toolName].name
-                : isConfigured
-                  ? `⚠️ Unknown: ${tool.toolName}` // Invalid tool name
-                  : "⚠️ Configure tool"; // Empty toolName
+                return (
+                  <div
+                    key={tool.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs group hover:bg-chart-2/30 transition-colors bg-destructive/10 border border-destructive/40"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => handleSelectBlock(e, tool)}
+                      className="flex items-center gap-2 flex-1 min-w-0 text-left cursor-pointer"
+                    >
+                      <AlertCircle className="h-3 w-3 text-destructive flex-shrink-0" />
+                      <span className="flex-1 truncate text-destructive italic">
+                        {toolLabel}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveBlock(tool.id, "tool");
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-destructive/20 rounded transition-opacity"
+                    >
+                      <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                    </button>
+                  </div>
+                );
+              }
 
-              const isInvalid = !isValidTool && isConfigured;
+              const toolLabel = SUBAGENT_TOOL_DEFINITIONS[tool.toolName].name;
+              const isValidTool = true;
 
               return (
                 <div
