@@ -1,7 +1,26 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { UserMenu } from "@/components/user-menu";
+import { db } from "@general-agent/database/client";
+import { getAgentsByUserId } from "@general-agent/database/queries/agents";
 
-export default function Home() {
+export default async function Home() {
+  // Session is guaranteed by proxy.ts middleware
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  // This should never happen due to proxy, but TypeScript doesn't know that
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  const agents = await getAgentsByUserId(db, session.user.id);
+
+  type Agent = typeof agents[number];
+
   return (
     <main className="min-h-screen p-8">
       <div className="max-w-6xl mx-auto">
@@ -12,35 +31,41 @@ export default function Home() {
               Manage your AI agents
             </p>
           </div>
-          <Button>
-            Create Agent
-          </Button>
+          <div className="flex items-center gap-4">
+            <UserMenu userName={session.user.name || session.user.email} />
+            <Button>
+              Create Agent
+            </Button>
+          </div>
         </div>
 
         <div className="grid gap-4">
-          {/* Temporary demo agent */}
-          <div className="p-6 border rounded-lg">
-            <h3 className="text-xl font-semibold mb-2">Demo Agent</h3>
-            <p className="text-muted-foreground mb-4">
-              A demo agent for testing
-            </p>
-            <div className="flex gap-2">
-              <Button size="sm" variant="outline" asChild>
-                <Link href="/agent/demo-agent-1">
-                  Edit
-                </Link>
-              </Button>
-              <Button size="sm" variant="default" asChild>
-                <Link href="/agent/demo-agent-1/chat">
-                  Chat
-                </Link>
-              </Button>
+          {agents.length === 0 ? (
+            <div className="p-8 border-2 border-dashed rounded-lg text-center text-muted-foreground">
+              <p>No agents yet. Create your first agent to get started.</p>
             </div>
-          </div>
-
-          <div className="p-8 border-2 border-dashed rounded-lg text-center text-muted-foreground">
-            <p>No agents yet. Create your first agent to get started.</p>
-          </div>
+          ) : (
+            agents.map((agent: Agent) => (
+              <div key={agent.id} className="p-6 border rounded-lg">
+                <h3 className="text-xl font-semibold mb-2">{agent.name}</h3>
+                <p className="text-muted-foreground mb-4 text-sm">
+                  Created {agent.createdAt.toLocaleDateString()}
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" asChild>
+                    <Link href={`/agent/${agent.id}`}>
+                      Edit
+                    </Link>
+                  </Button>
+                  <Button size="sm" variant="default" asChild>
+                    <Link href={`/agent/${agent.id}/chat`}>
+                      Chat
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </main>

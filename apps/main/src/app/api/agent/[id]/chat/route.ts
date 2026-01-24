@@ -2,25 +2,45 @@ import { convertToModelMessages, streamText } from 'ai';
 import { anthropic } from '@/lib/integrations/ai';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { db, schema } from '@general-agent/database';
-import { eq } from 'drizzle-orm';
+import { db } from '@general-agent/database/client';
+import * as schema from '@general-agent/database/schema';
+import { eq, and } from 'drizzle-orm';
 import { spawnSubagent } from '@/lib/agent/subagent-spawner';
 import { parseAgentConfig } from '@/lib/config/agent-config-types';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check authentication
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { id: agentId } = await params;
     const { messages } = await request.json();
     const modelMessages = await convertToModelMessages(messages ?? []);
 
-    // Load agent config from DB
+    // Load agent config from DB and verify ownership
     const [agent] = await db
       .select()
       .from(schema.agents)
-      .where(eq(schema.agents.id, agentId))
+      .where(
+        and(
+          eq(schema.agents.id, agentId),
+          eq(schema.agents.userId, session.user.id)
+        )
+      )
       .limit(1);
 
     if (!agent) {

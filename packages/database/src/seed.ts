@@ -1,19 +1,40 @@
 import * as dotenv from 'dotenv';
-import { db, schema } from './index';
+import { db } from '@database/client';
+import * as schema from '@database/schema';
 
 // Load environment variables
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '../../.env.local' });
 
 async function seed() {
   console.log('🌱 Seeding database...');
 
   try {
+    // Get first user or create a test user
+    let [testUser] = await db.select().from(schema.user).limit(1);
+
+    if (!testUser) {
+      [testUser] = await db.insert(schema.user).values({
+        id: 'test-user-1',
+        name: 'Test User',
+        email: 'test@example.com',
+        emailVerified: false,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }).returning();
+      console.log('✅ Created test user');
+    }
+
+    if (!testUser) {
+      throw new Error('Failed to get or create test user');
+    }
+
     // Delete existing agents
     await db.delete(schema.agents);
     console.log('✅ Cleared existing agents');
 
     // Insert test agent
     const [agent] = await db.insert(schema.agents).values({
+      userId: testUser.id,
       name: 'Test Agent with Subagent',
       config: {
         name: 'Test Agent with Subagent',

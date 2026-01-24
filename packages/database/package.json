@@ -9,8 +9,9 @@
         "db:studio": "drizzle-kit studio"
     },
     "exports": {
-        ".": "./src/index.ts",
-        "./schema": "./src/schema.ts"
+        "./schema": "./src/schema.ts",
+        "./client": "./src/client.ts",
+        "./queries/agents": "./src/queries/agents.ts"
     },
     "dependencies": {
         "drizzle-orm": "^0.45.1",

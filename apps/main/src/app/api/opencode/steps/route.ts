@@ -1,11 +1,22 @@
 import { createOpencodeClient } from '@opencode-ai/sdk';
 import { NextRequest } from 'next/server';
 import { waitForOpencodeToolCall } from '@/lib/agent/opencode-job-registry';
+import { auth } from '@/lib/auth';
+import { headers } from 'next/headers';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+  // Check authentication
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return new Response('Unauthorized', { status: 401 });
+  }
+
   const { searchParams } = new URL(request.url);
   const toolCallId = searchParams.get('toolCallId');
   console.log('[OpenCode Steps] connect', { toolCallId });

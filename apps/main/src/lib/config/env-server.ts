@@ -16,6 +16,8 @@ export const serverEnv = createEnv({
     LANGFUSE_SECRET_KEY: z.string().optional(),
     VERCEL_AI_GATEWAY_API_KEY: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
+    BETTER_AUTH_SECRET: z.string().min(1),
+    BETTER_AUTH_URL: z.string().min(1),
   },
 
   /*
@@ -32,5 +34,7 @@ export const serverEnv = createEnv({
     LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
   },
 });
