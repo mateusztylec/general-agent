@@ -1,0 +1,14 @@
+{
+  "name": "@general-agent/encryption",
+  "private": true,
+  "exports": {
+    "./credentials": "./src/credentials.ts"
+  },
+  "devDependencies": {
+    "@general-agent/tsconfig": "workspace:*",
+    "@types/node": "^25.0.10"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  }
+}

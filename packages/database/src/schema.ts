@@ -56,3 +56,14 @@ export const agents = pgTable('agents', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Credentials table - stores encrypted secrets separately from agent config
+export const credentials = pgTable('credentials', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(), // User-friendly name like "Production OpenAI Key"
+  type: text('type').notNull(), // Type: 'llm_api_key', 's3_credentials', 'aws_credentials', etc.
+  data: text('data').notNull(), // Encrypted JSON containing the actual credentials
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

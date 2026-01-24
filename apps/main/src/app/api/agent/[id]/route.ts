@@ -31,11 +31,12 @@ export async function PATCH(
     try {
       parseAgentConfig(config);
     } catch (error) {
-      const details = error instanceof z.ZodError ? error.errors : String(error);
+      const details = error instanceof z.ZodError ? error.issues : String(error);
+      console.error('Config validation failed:', details);
       return new Response(
-        JSON.stringify({ 
+        JSON.stringify({
           error: 'Invalid agent config format',
-          details 
+          details
         }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );

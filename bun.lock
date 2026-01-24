@@ -114,6 +114,16 @@
         "drizzle-kit": "^0.31.8",
       },
     },
+    "packages/encryption": {
+      "name": "@general-agent/encryption",
+      "dependencies": {
+        "zod": "^4.3.6",
+      },
+      "devDependencies": {
+        "@general-agent/tsconfig": "workspace:*",
+        "@types/node": "^25.0.10",
+      },
+    },
     "packages/sandbox": {
       "name": "@general-agent/sandbox",
       "dependencies": {
@@ -253,6 +263,8 @@
     "@general-agent/agent": ["@general-agent/agent@workspace:packages/agent"],
 
     "@general-agent/database": ["@general-agent/database@workspace:packages/database"],
+
+    "@general-agent/encryption": ["@general-agent/encryption@workspace:packages/encryption"],
 
     "@general-agent/sandbox": ["@general-agent/sandbox@workspace:packages/sandbox"],
 

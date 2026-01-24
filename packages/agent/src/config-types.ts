@@ -19,12 +19,43 @@ export const AvailableToolSchema = z.enum([
   "question",
 ]);
 
-export const OpencodePermissionMapSchema = z.record(
-  AvailableToolSchema,
-  OpencodePermissionPolicySchema
-);
+export const OpencodePermissionMapSchema = z
+  .object({
+    bash: OpencodePermissionPolicySchema.optional(),
+    edit: OpencodePermissionPolicySchema.optional(),
+    write: OpencodePermissionPolicySchema.optional(),
+    read: OpencodePermissionPolicySchema.optional(),
+    grep: OpencodePermissionPolicySchema.optional(),
+    glob: OpencodePermissionPolicySchema.optional(),
+    list: OpencodePermissionPolicySchema.optional(),
+    lsp: OpencodePermissionPolicySchema.optional(),
+    patch: OpencodePermissionPolicySchema.optional(),
+    skill: OpencodePermissionPolicySchema.optional(),
+    todowrite: OpencodePermissionPolicySchema.optional(),
+    todoread: OpencodePermissionPolicySchema.optional(),
+    webfetch: OpencodePermissionPolicySchema.optional(),
+    question: OpencodePermissionPolicySchema.optional(),
+  })
+  .strict();
 
-export const OpencodeToolsMapSchema = z.record(AvailableToolSchema, z.boolean());
+export const OpencodeToolsMapSchema = z
+  .object({
+    bash: z.boolean().optional(),
+    edit: z.boolean().optional(),
+    write: z.boolean().optional(),
+    read: z.boolean().optional(),
+    grep: z.boolean().optional(),
+    glob: z.boolean().optional(),
+    list: z.boolean().optional(),
+    lsp: z.boolean().optional(),
+    patch: z.boolean().optional(),
+    skill: z.boolean().optional(),
+    todowrite: z.boolean().optional(),
+    todoread: z.boolean().optional(),
+    webfetch: z.boolean().optional(),
+    question: z.boolean().optional(),
+  })
+  .strict();
 
 export const OpencodeAgentConfigSchema = z.object({
   description: z.string().optional(),
@@ -44,18 +75,30 @@ export const OpencodeConfigCoreSchema = z.object({
   permission: OpencodePermissionMapSchema.optional(),
 });
 
-export const MainAgentConfigSchema = z.object({
-  systemPrompt: z.string(),
+// LLM configuration with credential reference
+export const LLMConfigSchema = z.object({
   model: z.string(),
+  systemPrompt: z.string(),
+  apiKeyCredentialId: z.string().optional(), // Reference to credentials table
+});
+
+// Storage configuration with credential reference
+export const StorageConfigSchema = z.object({
+  type: z.enum(['s3', 'r2']),
+  credentialId: z.string().optional(), // References credentials table
+  config: z.record(z.string(), z.unknown()).optional(), // Non-secret config like bucket name, region
+});
+
+export const MainAgentConfigSchema = z.object({
+  llm: LLMConfigSchema,
 });
 
 export const SubagentConfigSchema = z.object({
   name: z.string(),
-  systemPrompt: z.string(),
   description: z.string(),
   skills: z.array(z.string()),
-  storage: z.array(z.unknown()),
-  model: z.string().optional(),
+  storage: z.array(StorageConfigSchema),
+  llm: LLMConfigSchema.optional(),
   small_model: z.string().optional(),
   tools: OpencodeToolsMapSchema.optional(),
   permission: OpencodePermissionMapSchema.optional(),
@@ -140,9 +183,11 @@ export type OpencodePermissionMap = z.infer<
   typeof OpencodePermissionMapSchema
 >;
 export type AvailableTool = z.infer<typeof AvailableToolSchema>;
-export type OpencodeToolsMap = Record<AvailableTool, boolean>;
+export type OpencodeToolsMap = Partial<Record<AvailableTool, boolean>>;
 export type OpencodeAgentConfig = z.infer<typeof OpencodeAgentConfigSchema>;
 export type OpencodeConfigCore = z.infer<typeof OpencodeConfigCoreSchema>;
+export type LLMConfig = z.infer<typeof LLMConfigSchema>;
+export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 export type MainAgentConfig = z.infer<typeof MainAgentConfigSchema>;
 export type SubagentConfig = z.infer<typeof SubagentConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
