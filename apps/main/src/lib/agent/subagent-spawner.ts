@@ -3,7 +3,7 @@ import { Sandbox } from 'e2b';
 import type { SubagentConfig } from '@/lib/config/agent-config-types';
 import { serverEnv } from '@/lib/config/env-server';
 import { buildOpencodeConfig } from '@/lib/agent/opencode-config';
-import { setOpencodeJob } from '@/lib/agent/opencode-job-registry';
+import { setOpencodeToolCall } from '@/lib/agent/opencode-job-registry';
 
 type OpencodePart = { text?: string };
 type OpencodeMessageEntry = { info?: { role?: string }; parts?: OpencodePart[] };
@@ -12,7 +12,6 @@ export interface SpawnSubagentResult {
   sandboxId: string;
   url: string;
   token: string;
-  jobId: string;
   sessionId: string;
   output: string;
 }
@@ -52,7 +51,7 @@ async function waitForOpencodeReady(
 export async function spawnSubagent(
   subagentConfig: SubagentConfig,
   task: string,
-  jobId: string
+  toolCallId: string
 ): Promise<SpawnSubagentResult> {
   console.log('[Subagent Spawner] Starting...', { subagentConfig, task });
 
@@ -168,7 +167,7 @@ EOF`
     }
     const sessionId = session.data.id;
     console.log('[Subagent Spawner] Session created:', sessionId);
-    setOpencodeJob(jobId, {
+    setOpencodeToolCall(toolCallId, {
       sessionId,
       url,
       token: accessToken || '',
@@ -213,7 +212,6 @@ EOF`
       sandboxId,
       url,
       token: accessToken || '',
-      jobId,
       sessionId,
       output: output || 'Task executed successfully',
     };

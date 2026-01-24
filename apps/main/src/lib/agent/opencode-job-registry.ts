@@ -1,4 +1,4 @@
-type OpencodeJobEntry = {
+type OpencodeToolCallEntry = {
   sessionId: string;
   url: string;
   token: string;
@@ -6,36 +6,54 @@ type OpencodeJobEntry = {
 };
 
 const JOB_TTL_MS = 15 * 60 * 1000;
-const jobMap = new Map<string, OpencodeJobEntry>();
+
+// Use globalThis to share the Map across all Next.js route handlers
+// Without this, each route handler gets its own module instance with separate Map
+const globalForRegistry = globalThis as typeof globalThis & {
+  __opcodeToolCallMap?: Map<string, OpencodeToolCallEntry>;
+};
+
+if (!globalForRegistry.__opcodeToolCallMap) {
+  globalForRegistry.__opcodeToolCallMap = new Map<string, OpencodeToolCallEntry>();
+}
+
+const toolCallMap = globalForRegistry.__opcodeToolCallMap;
 
 function cleanupExpiredJobs(now: number) {
-  for (const [jobId, entry] of jobMap.entries()) {
+  for (const [toolCallId, entry] of toolCallMap.entries()) {
     if (now - entry.updatedAt > JOB_TTL_MS) {
-      jobMap.delete(jobId);
+      toolCallMap.delete(toolCallId);
     }
   }
 }
 
-export function setOpencodeJob(
-  jobId: string,
+export function setOpencodeToolCall(
+  toolCallId: string,
   data: { sessionId: string; url: string; token: string }
 ) {
   const now = Date.now();
   cleanupExpiredJobs(now);
-  jobMap.set(jobId, { ...data, updatedAt: now });
+  toolCallMap.set(toolCallId, { ...data, updatedAt: now });
+  console.log('[JobRegistry] SET', { toolCallId, mapSize: toolCallMap.size });
 }
 
-export function getOpencodeJob(jobId: string) {
-  return jobMap.get(jobId);
+export function getOpencodeToolCallDebug() {
+  return Array.from(toolCallMap.keys());
 }
 
-export async function waitForOpencodeJob(
-  jobId: string,
+export function getOpencodeToolCall(toolCallId: string) {
+  const result = toolCallMap.get(toolCallId);
+  console.log('[JobRegistry] GET', { toolCallId, found: !!result, allKeys: Array.from(toolCallMap.keys()) });
+  return result;
+}
+
+export async function waitForOpencodeToolCall(
+  toolCallId: string,
   opts: { timeoutMs: number; intervalMs: number }
 ) {
   const start = Date.now();
   while (Date.now() - start < opts.timeoutMs) {
-    const entry = getOpencodeJob(jobId);
+    const entry = getOpencodeToolCall(toolCallId);
     if (entry) return entry;
     await new Promise((resolve) => setTimeout(resolve, opts.intervalMs));
   }

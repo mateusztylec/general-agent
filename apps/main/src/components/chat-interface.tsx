@@ -7,33 +7,28 @@ import { Input } from '@/components/ui/input';
 import { DefaultChatTransport } from 'ai';
 import { OpencodeSteps } from '@/components/opencode-steps';
 
-type ToolResultPayload = {
-  jobId?: string;
-  output?: string;
+type ToolPartShape = {
+  type: string;
+  toolCallId: string;
+  state?: string;
+  output?: unknown;
 };
 
-function getToolResultPayload(part: unknown): ToolResultPayload | null {
-  if (!part || typeof part !== 'object') return null;
-  const record = part as Record<string, unknown>;
-  const raw =
-    'result' in record
-      ? record.result
-      : 'output' in record
-        ? record.output
-        : undefined;
+function isToolPart(part: unknown): part is ToolPartShape {
+  return (
+    typeof part === 'object' &&
+    part !== null &&
+    'toolCallId' in part &&
+    typeof (part as { toolCallId?: unknown }).toolCallId === 'string'
+  );
+}
 
-  if (typeof raw === 'string') {
-    try {
-      return JSON.parse(raw) as ToolResultPayload;
-    } catch {
-      return { output: raw };
-    }
+function getToolOutputText(output: unknown): string | null {
+  if (typeof output === 'string') return output;
+  if (output && typeof output === 'object' && 'output' in output) {
+    const value = (output as { output?: unknown }).output;
+    if (typeof value === 'string') return value;
   }
-
-  if (raw && typeof raw === 'object') {
-    return raw as ToolResultPayload;
-  }
-
   return null;
 }
 
@@ -93,25 +88,19 @@ export function ChatInterface({ agentId }: ChatInterfaceProps) {
                     if (part.type === 'text') {
                       return <div key={idx}>{part.text}</div>;
                     }
-                    if (part.type === 'tool-call') {
-                      const toolCallId =
-                        'toolCallId' in part ? String(part.toolCallId) : undefined;
+                    if (isToolPart(part)) {
+                      const outputText =
+                        part.state === 'output-available'
+                          ? getToolOutputText(part.output)
+                          : null;
                       return (
                         <div key={idx} className="mt-2 space-y-2">
                           <div className="text-xs opacity-75">
-                            🔧 {part.title}...
+                            🔧 {part.type}
                           </div>
-                          {toolCallId && <OpencodeSteps jobId={toolCallId} />}
-                        </div>
-                      );
-                    }
-                    if (part.type.startsWith('tool-')) {
-                      const result = getToolResultPayload(part);
-                      if (!result) return null;
-                      return (
-                        <div key={idx} className="mt-2 space-y-2">
-                          {result.output && (
-                            <div className="text-sm">{result.output}</div>
+                          <OpencodeSteps toolCallId={part.toolCallId} />
+                          {outputText && (
+                            <div className="text-sm">{outputText}</div>
                           )}
                         </div>
                       );

@@ -49,13 +49,12 @@ export async function POST(
           inputSchema: z.object({
             task: z.string().describe('The task for the subagent to perform'),
             systemPrompt: z.string().optional().describe('Optional system prompt for the subagent'),
-            jobId: z.string().optional().describe('Optional job id for streaming steps'),
           }),
           execute: async (
-            { task, systemPrompt: subSystemPrompt, jobId },
+            { task, systemPrompt: subSystemPrompt },
             options?: { toolCallId?: string }
           ) => {
-            console.log('Spawning subagent:', { task, systemPrompt: subSystemPrompt });
+            console.log('Spawning subagent:', { task, systemPrompt: subSystemPrompt, toolCallIdFromOptions: options?.toolCallId });
 
             // Get first subagent config from agent config
             const subagents = config.subagents || [];
@@ -70,9 +69,9 @@ export async function POST(
             };
 
             // Spawn subagent on E2B
-            const effectiveJobId =
-              jobId ?? options?.toolCallId ?? crypto.randomUUID();
-            const result = await spawnSubagent(subagentConfig, task, effectiveJobId);
+            const toolCallId = options?.toolCallId ?? crypto.randomUUID();
+            console.log('Using toolCallId:', { toolCallId, fromOptions: !!options?.toolCallId });
+            const result = await spawnSubagent(subagentConfig, task, toolCallId);
 
             return {
               status: 'success',
@@ -80,7 +79,6 @@ export async function POST(
               sessionId: result.sessionId,
               url: result.url,
               token: result.token,
-              jobId: result.jobId,
               output: result.output,
             };
           },
