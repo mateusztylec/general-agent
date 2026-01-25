@@ -106,6 +106,9 @@ function buildEditorState(config: AgentConfig): {
       tools: toolsToBlocks(subagent.tools),
       skills: skillsToBlocks(subagent.skills),
       storages: storageToBlocks(subagent.storage),
+      sandbox: {
+        internetAccess: subagent.sandbox?.internetAccess ?? false,
+      },
       llmProvider: subagent.llm?.provider ?? config.mainAgent.llm.provider,
       llmModel: subagent.llm?.model ?? config.mainAgent.llm.model,
       llmSystemPrompt: subagent.llm?.systemPrompt ?? "",

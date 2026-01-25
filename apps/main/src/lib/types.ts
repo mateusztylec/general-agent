@@ -1,4 +1,7 @@
-import type { AvailableTool } from "@general-agent/agent/config-types";
+import type {
+	AvailableTool,
+	SandboxConfig,
+} from "@general-agent/agent/config-types";
 
 export type NodeType = "agent" | "subagent";
 
@@ -52,6 +55,7 @@ export interface NodeData extends Record<string, unknown> {
   tools: SubagentToolBlock[];
   skills: SkillBlock[];
   storages: StorageBlock[];
+	sandbox?: SandboxConfig;
   llmProvider?: "openai" | "anthropic" | "google";
   llmModel?: string;
   llmSystemPrompt?: string;

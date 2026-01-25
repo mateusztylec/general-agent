@@ -95,6 +95,12 @@ export const StorageConfigSchema = z.object({
 	config: z.record(z.string(), z.unknown()).optional(), // Non-secret config like bucket name, region
 });
 
+export const SandboxConfigSchema = z
+	.object({
+		internetAccess: z.boolean().default(false),
+	})
+	.strict();
+
 export const MainAgentConfigSchema = z.object({
 	llm: LLMConfigSchema,
 });
@@ -104,6 +110,7 @@ export const SubagentConfigSchema = z.object({
 	description: z.string(),
 	skills: z.array(z.string()),
 	storage: z.array(StorageConfigSchema),
+	sandbox: SandboxConfigSchema.default({ internetAccess: false }),
 	llm: SubagentLLMConfigSchema.optional(),
 	tools: OpencodeToolsMapSchema.optional(),
 	permission: OpencodePermissionMapSchema.optional(),
@@ -192,6 +199,7 @@ export type OpencodeConfigCore = z.infer<typeof OpencodeConfigCoreSchema>;
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
 export type SubagentLLMConfig = z.infer<typeof SubagentLLMConfigSchema>;
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
+export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
 export type MainAgentConfig = z.infer<typeof MainAgentConfigSchema>;
 export type SubagentConfig = z.infer<typeof SubagentConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

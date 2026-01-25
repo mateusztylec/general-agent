@@ -71,6 +71,7 @@ export async function createSubagentSession(
 
   // 1. Create E2B sandbox from custom template with OpenCode pre-installed
   const sandbox = await Sandbox.create(templateAlias, {
+    allowInternetAccess: subagentConfig.sandbox?.internetAccess ?? false,
     network: {
       allowPublicTraffic: false,
     },

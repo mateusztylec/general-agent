@@ -29,6 +29,7 @@ import { SubagentPropertySheet } from "@/components/sheets/subagent-property-she
 import { ToolPropertySheet } from "@/components/sheets/tool-property-sheet";
 import { SkillPropertySheet } from "@/components/sheets/skill-property-sheet";
 import { StoragePropertySheet } from "@/components/sheets/storage-property-sheet";
+import { SandboxPropertySheet } from "@/components/sheets/sandbox-property-sheet";
 import { Button } from "@/components/ui/button";
 import type {
   AnyBlock,
@@ -146,6 +147,9 @@ function convertToAgentConfig(
     permission: blocksToPermissions(node.data.tools),
     skills: blocksToSkills(node.data.skills),
     storage: blocksToStorage(node.data.storages),
+    sandbox: {
+      internetAccess: node.data.sandbox?.internetAccess ?? false,
+    },
   }));
 
   return {
@@ -187,7 +191,7 @@ function EditorFlow({
 
   // Sheet state management
   const [openSheet, setOpenSheet] = useState<{
-    type: 'agent' | 'subagent' | 'tool' | 'skill' | 'storage';
+    type: "agent" | "subagent" | "tool" | "skill" | "storage" | "sandbox";
     nodeId?: string;
     blockId?: string;
   } | null>(null);
@@ -332,9 +336,17 @@ function EditorFlow({
       }
     };
 
+    const handleSandboxOpen = (e: CustomEvent<{ nodeId: string }>) => {
+      const { nodeId } = e.detail;
+      setSelectedNode(null);
+      setSelectedBlock(null);
+      setOpenSheet({ type: "sandbox", nodeId });
+    };
+
     window.addEventListener("block-drop", handleBlockDrop as EventListener);
     window.addEventListener("block-remove", handleBlockRemove as EventListener);
     window.addEventListener("block-select", handleBlockSelect as EventListener);
+    window.addEventListener("sandbox-open", handleSandboxOpen as EventListener);
 
     return () => {
       window.removeEventListener(
@@ -348,6 +360,10 @@ function EditorFlow({
       window.removeEventListener(
         "block-select",
         handleBlockSelect as EventListener,
+      );
+      window.removeEventListener(
+        "sandbox-open",
+        handleSandboxOpen as EventListener,
       );
     };
   }, [setNodes]);
@@ -440,6 +456,9 @@ function EditorFlow({
           tools: [],
           skills: [],
           storages: [],
+          sandbox: {
+            internetAccess: false,
+          },
           llmProvider: "anthropic",
           llmModel: "claude-sonnet-4-5-20250929",
           llmSystemPrompt: "",
@@ -689,6 +708,13 @@ function EditorFlow({
         onClose={() => setOpenSheet(null)}
         onUpdate={updateBlockData}
         onDelete={deleteBlock}
+      />
+
+      <SandboxPropertySheet
+        node={openSheet?.type === "sandbox" ? getCurrentNode() : null}
+        isOpen={Boolean(openSheet?.type === "sandbox")}
+        onClose={() => setOpenSheet(null)}
+        onUpdate={updateNodeData}
       />
     </div>
   );

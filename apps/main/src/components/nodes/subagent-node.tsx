@@ -1,7 +1,7 @@
 "use client";
 
 import { Handle, type Node, type NodeProps, Position } from "@xyflow/react";
-import { AlertCircle, Cpu, HardDrive, Sparkles, Wrench, X } from "lucide-react";
+import { AlertCircle, Cpu, Globe, HardDrive, Sparkles, Wrench, X } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
 import type {
@@ -48,6 +48,14 @@ export const SubagentNode = memo(function SubagentNode({
     e.stopPropagation(); // Prevent node click from firing
     const event = new CustomEvent("block-select", {
       detail: { nodeId: id, block },
+    });
+    window.dispatchEvent(event);
+  };
+
+  const handleOpenSandbox = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const event = new CustomEvent("sandbox-open", {
+      detail: { nodeId: id },
     });
     window.dispatchEvent(event);
   };
@@ -213,7 +221,7 @@ export const SubagentNode = memo(function SubagentNode({
         </div>
       </div>
 
-      <div className="px-3 py-2 rounded-b-2xl">
+      <div className="px-3 py-2 border-t border-dashed border-border/50">
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
           <HardDrive className="h-3 w-3" /> Storage
         </div>
@@ -263,6 +271,20 @@ export const SubagentNode = memo(function SubagentNode({
             </div>
           )}
         </div>
+      </div>
+
+      <div className="px-3 py-2 rounded-b-2xl border-t border-dashed border-border/50">
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1">
+          <Globe className="h-3 w-3" /> Sandbox
+        </div>
+        <button
+          type="button"
+          onClick={handleOpenSandbox}
+          className="w-full text-left px-2 py-1.5 rounded-lg text-xs bg-violet-500/15 border border-violet-500/30 hover:bg-violet-500/25 transition-colors flex items-center gap-2"
+        >
+          <Globe className="h-3 w-3 text-violet-400 flex-shrink-0" />
+          <span className="flex-1 truncate">Sandbox settings</span>
+        </button>
       </div>
     </section>
   );

@@ -27,9 +27,10 @@ export async function PATCH(
     const body = await request.json();
     const { config } = body;
 
-    // Validate config structure
+    // Validate config structure and apply defaults
+    let parsedConfig;
     try {
-      parseAgentConfig(config);
+      parsedConfig = parseAgentConfig(config);
     } catch (error) {
       const details = error instanceof z.ZodError ? error.issues : String(error);
       console.error('Config validation failed:', details);
@@ -45,7 +46,7 @@ export async function PATCH(
     // Update agent
     const updated = await updateAgent(db, {
       id,
-      config,
+      config: parsedConfig,
     });
 
     if (!updated) {
