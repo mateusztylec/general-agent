@@ -67,3 +67,16 @@ export const credentials = pgTable('credentials', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// OpenCode sessions - temporary storage for streaming sandbox connections
+// Acts as a bridge between tool calls and frontend streaming endpoints
+export const opencodeSessions = pgTable('opencode_sessions', {
+  toolCallId: text('tool_call_id').primaryKey(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  agentId: uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  sessionId: text('session_id').notNull(), // OpenCode session ID for event filtering
+  url: text('url').notNull(), // E2B sandbox URL (e.g., https://xxx.e2b.dev)
+  token: text('token').notNull(), // E2B traffic access token
+  expiresAt: timestamp('expires_at').notNull(), // Auto-cleanup threshold
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

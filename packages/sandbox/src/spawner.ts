@@ -9,6 +9,7 @@ type OpencodeMessageEntry = { info?: { role?: string }; parts?: OpencodePart[] }
 export interface SandboxEnvVars {
   AI_GATEWAY_API_KEY: string;
   OPENAI_API_KEY: string;
+  ANTHROPIC_API_KEY: string;
 }
 
 export interface SpawnSubagentResult {
@@ -48,16 +49,25 @@ async function waitForOpencodeReady(
   throw new Error('OpenCode server not ready (port not open)');
 }
 
+export interface SubagentSession {
+  sandboxId: string;
+  url: string;
+  token: string;
+  sessionId: string;
+  client: ReturnType<typeof createOpencodeClient>;
+  cleanup: () => Promise<void>;
+}
+
 /**
- * Spawns a subagent on E2B sandbox with OpenCode
+ * Phase 1: Create sandbox and OpenCode session (before sending prompt)
+ * This allows registering the session in DB before any events are generated
  */
-export async function spawnSubagent(
+export async function createSubagentSession(
   subagentConfig: SubagentConfig,
-  task: string,
   envVars: SandboxEnvVars,
   templateAlias: string = 'general-agent-opencode'
-): Promise<SpawnSubagentResult> {
-  console.log('[Sandbox Spawner] Starting...', { subagentConfig, task });
+): Promise<SubagentSession> {
+  console.log('[Sandbox Spawner] Phase 1: Creating session...', { subagentConfig: subagentConfig.name });
 
   // 1. Create E2B sandbox from custom template with OpenCode pre-installed
   const sandbox = await Sandbox.create(templateAlias, {
@@ -69,6 +79,7 @@ export async function spawnSubagent(
     envs: {
       AI_GATEWAY_API_KEY: envVars.AI_GATEWAY_API_KEY,
       OPENAI_API_KEY: envVars.OPENAI_API_KEY,
+      ANTHROPIC_API_KEY: envVars.ANTHROPIC_API_KEY,
     },
   });
 
@@ -140,22 +151,12 @@ EOF`
 
     const client = createOpencodeClient({
       baseUrl: url,
-      fetch: accessToken
-        ? (input: RequestInfo | URL, init?: RequestInit) => {
-          if (input instanceof Request) {
-            const headers = new Headers(input.headers);
-            headers.set('e2b-traffic-access-token', accessToken);
-            return fetch(new Request(input, { headers }));
-          }
-
-          const headers = new Headers(init?.headers);
-          headers.set('e2b-traffic-access-token', accessToken);
-          return fetch(input, { ...init, headers });
-        }
-        : fetch,
+      headers: {
+        'e2b-traffic-access-token': accessToken,
+      },
     });
 
-    // 5. Create session in OpenCode
+    // 5. Create session in OpenCode (but DON'T send prompt yet!)
     console.log('[Sandbox Spawner] Creating OpenCode session...');
     const session = await client.session.create({
       body: { title: `Subagent: ${subagentConfig.name}` },
@@ -170,14 +171,57 @@ EOF`
     }
     const sessionId = session.data.id;
     console.log('[Sandbox Spawner] Session created:', sessionId);
+    console.log('[Sandbox Spawner] Phase 1 complete - ready to register in DB');
 
-    // 6. Send task message to OpenCode
+    return {
+      sandboxId,
+      url,
+      token: accessToken || '',
+      sessionId,
+      client,
+      cleanup: async () => {
+        try {
+          console.log('[Sandbox Spawner] Cleaning up sandbox:', sandboxId);
+          await sandbox.kill();
+        } catch (error) {
+          console.error('[Sandbox Spawner] Cleanup error:', error);
+        }
+      },
+    };
+
+  } catch (error) {
+    console.error('[Sandbox Spawner] Phase 1 error:', error);
+
+    // Cleanup sandbox on error
+    try {
+      await sandbox.kill();
+    } catch (cleanupError) {
+      console.error('[Sandbox Spawner] Cleanup error:', cleanupError);
+    }
+
+    throw error;
+  }
+}
+
+/**
+ * Phase 2: Send prompt and execute task
+ * Call this AFTER registering the session in DB so frontend can subscribe
+ */
+export async function executeSubagentTask(
+  session: SubagentSession,
+  subagentConfig: SubagentConfig,
+  task: string
+): Promise<SpawnSubagentResult> {
+  console.log('[Sandbox Spawner] Phase 2: Executing task...', { task });
+
+  try {
+    // Send task message to OpenCode
     console.log('[Sandbox Spawner] Sending task to OpenCode...');
-    const messageResult = await client.session.prompt({
-      path: { id: sessionId },
+    const messageResult = await session.client.session.prompt({
+      path: { id: session.sessionId },
       body: {
-        ...(subagentConfig.systemPrompt
-          ? { system: subagentConfig.systemPrompt }
+        ...(subagentConfig.llm?.systemPrompt
+          ? { system: subagentConfig.llm.systemPrompt }
           : {}),
         parts: [{ type: 'text', text: task }],
       },
@@ -189,8 +233,8 @@ EOF`
     }
     console.log('[Sandbox Spawner] Task sent, response:', messageResult.data);
 
-    // 7. Get messages to extract output
-    const messages = await client.session.messages({ path: { id: sessionId } });
+    // Get messages to extract output
+    const messages = await session.client.session.messages({ path: { id: session.sessionId } });
     const assistantMessages = (messages.data as OpencodeMessageEntry[]).filter(
       (entry) => entry.info?.role === 'assistant'
     );
@@ -201,26 +245,19 @@ EOF`
       })
       .join('\n\n');
 
-    console.log('[Sandbox Spawner] Task completed');
+    console.log('[Sandbox Spawner] Phase 2 complete - task executed');
 
     return {
-      sandboxId,
-      url,
-      token: accessToken || '',
-      sessionId,
+      sandboxId: session.sandboxId,
+      url: session.url,
+      token: session.token,
+      sessionId: session.sessionId,
       output: output || 'Task executed successfully',
     };
 
   } catch (error) {
-    console.error('[Sandbox Spawner] Error:', error);
-
-    // Cleanup sandbox on error
-    try {
-      await sandbox.kill();
-    } catch (cleanupError) {
-      console.error('[Sandbox Spawner] Cleanup error:', cleanupError);
-    }
-
+    console.error('[Sandbox Spawner] Phase 2 error:', error);
+    await session.cleanup();
     throw error;
   }
 }

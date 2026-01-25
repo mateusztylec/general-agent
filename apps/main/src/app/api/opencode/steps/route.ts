@@ -1,6 +1,6 @@
 import { createOpencodeClient } from '@opencode-ai/sdk';
 import { NextRequest } from 'next/server';
-import { waitForOpencodeToolCall } from '@/lib/agent/opencode-job-registry';
+import { waitForOpencodeToolCallWithAuth } from '@/lib/agent/opencode-job-registry';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
@@ -19,23 +19,27 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const toolCallId = searchParams.get('toolCallId');
-  console.log('[OpenCode Steps] connect', { toolCallId });
+  console.log('[OpenCode Steps] connect', { toolCallId, userId: session.user.id });
   if (!toolCallId) {
     return new Response('Missing toolCallId', { status: 400 });
   }
 
-  const job = await waitForOpencodeToolCall(toolCallId, {
-    timeoutMs: 120_000,
-    intervalMs: 500,
-  });
+  // Wait for session with auth check (spawn might still be in progress)
+  const job = await waitForOpencodeToolCallWithAuth(
+    toolCallId,
+    session.user.id,
+    { timeoutMs: 120_000, intervalMs: 500 }
+  );
 
   if (!job) {
-    console.warn('[OpenCode Steps] job not found', { toolCallId });
-    return new Response('Job not found', { status: 404 });
+    console.warn('[OpenCode Steps] job not found or unauthorized', { toolCallId, userId: session.user.id });
+    return new Response('Job not found or unauthorized', { status: 404 });
   }
+
   console.log('[OpenCode Steps] job ready', {
     toolCallId,
     sessionId: job.sessionId,
+    userId: session.user.id,
   });
 
   if (!job.token) {

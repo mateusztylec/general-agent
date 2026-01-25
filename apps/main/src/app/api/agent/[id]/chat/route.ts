@@ -53,7 +53,7 @@ export async function POST(
     // Extract config
     const config = parseAgentConfig(agent.config);
     const systemPrompt =
-      config.mainAgent.systemPrompt || 'You are a helpful AI assistant.';
+      config.mainAgent.llm?.systemPrompt || 'You are a helpful AI assistant.';
 
     // Stream response with tool calling
     const result = streamText({
@@ -85,20 +85,26 @@ export async function POST(
             const subagentBase = subagents[0]; // Use first subagent for now
             const subagentConfig = {
               ...subagentBase,
-              systemPrompt: subSystemPrompt ?? subagentBase.systemPrompt,
+              systemPrompt: subSystemPrompt ?? subagentBase.llm?.systemPrompt,
             };
 
             // Spawn subagent on E2B
             const toolCallId = options?.toolCallId ?? crypto.randomUUID();
             console.log('Using toolCallId:', { toolCallId, fromOptions: !!options?.toolCallId });
-            const result = await spawnSubagent(subagentConfig, task, toolCallId);
+            const result = await spawnSubagent(
+              subagentConfig,
+              task,
+              toolCallId,
+              {
+                userId: session.user.id,
+                agentId,
+              }
+            );
 
             return {
               status: 'success',
               sandboxId: result.sandboxId,
               sessionId: result.sessionId,
-              url: result.url,
-              token: result.token,
               output: result.output,
             };
           },

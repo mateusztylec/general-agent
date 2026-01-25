@@ -1,59 +1,107 @@
-type OpencodeToolCallEntry = {
-  sessionId: string;
-  url: string;
-  token: string;
-  updatedAt: number;
-};
+import { db } from '@general-agent/database/client';
+import * as queries from '@general-agent/database/queries/opencode-sessions';
 
 const JOB_TTL_MS = 15 * 60 * 1000;
 
-// Use globalThis to share the Map across all Next.js route handlers
-// Without this, each route handler gets its own module instance with separate Map
-const globalForRegistry = globalThis as typeof globalThis & {
-  __opcodeToolCallMap?: Map<string, OpencodeToolCallEntry>;
-};
+export type OpencodeToolCallEntry = queries.OpencodeSessionData;
 
-if (!globalForRegistry.__opcodeToolCallMap) {
-  globalForRegistry.__opcodeToolCallMap = new Map<string, OpencodeToolCallEntry>();
-}
+/**
+ * Store OpenCode session data for streaming bridge
+ */
+export async function setOpencodeToolCall(
+  toolCallId: string,
+  data: {
+    sessionId: string;
+    url: string;
+    token: string;
+    userId: string;
+    agentId: string;
+  }
+) {
+  const expiresAt = new Date(Date.now() + JOB_TTL_MS);
 
-const toolCallMap = globalForRegistry.__opcodeToolCallMap;
+  try {
+    await queries.createOpencodeSession(db, {
+      toolCallId,
+      ...data,
+      expiresAt,
+    });
+    console.log('[JobRegistry] SET', { toolCallId });
 
-function cleanupExpiredJobs(now: number) {
-  for (const [toolCallId, entry] of toolCallMap.entries()) {
-    if (now - entry.updatedAt > JOB_TTL_MS) {
-      toolCallMap.delete(toolCallId);
-    }
+    // Cleanup expired sessions opportunistically
+    queries.cleanupExpiredSessions(db).catch((error) =>
+      console.error('[JobRegistry] Cleanup error:', error)
+    );
+  } catch (error) {
+    console.error('[JobRegistry] SET error:', error);
+    throw error;
   }
 }
 
-export function setOpencodeToolCall(
+/**
+ * Get OpenCode session data (internal - no auth check)
+ */
+export async function getOpencodeToolCall(
+  toolCallId: string
+): Promise<OpencodeToolCallEntry | undefined> {
+  try {
+    const session = await queries.getOpencodeSession(db, toolCallId);
+    console.log('[JobRegistry] GET', { toolCallId, found: !!session });
+    return session;
+  } catch (error) {
+    console.error('[JobRegistry] GET error:', error);
+    return undefined;
+  }
+}
+
+/**
+ * Get OpenCode session with auth check
+ */
+export async function getOpencodeToolCallWithAuth(
   toolCallId: string,
-  data: { sessionId: string; url: string; token: string }
-) {
-  const now = Date.now();
-  cleanupExpiredJobs(now);
-  toolCallMap.set(toolCallId, { ...data, updatedAt: now });
-  console.log('[JobRegistry] SET', { toolCallId, mapSize: toolCallMap.size });
+  userId: string
+): Promise<OpencodeToolCallEntry | undefined> {
+  try {
+    const session = await queries.getOpencodeSessionWithAuth(db, toolCallId, userId);
+    if (!session) {
+      console.log('[JobRegistry] GET auth failed', { toolCallId, userId });
+      return undefined;
+    }
+    console.log('[JobRegistry] GET auth success', { toolCallId, userId });
+    return session;
+  } catch (error) {
+    console.error('[JobRegistry] GET auth error:', error);
+    return undefined;
+  }
 }
 
-export function getOpencodeToolCallDebug() {
-  return Array.from(toolCallMap.keys());
-}
-
-export function getOpencodeToolCall(toolCallId: string) {
-  const result = toolCallMap.get(toolCallId);
-  console.log('[JobRegistry] GET', { toolCallId, found: !!result, allKeys: Array.from(toolCallMap.keys()) });
-  return result;
-}
-
+/**
+ * Wait for OpenCode session to be registered (polling)
+ */
 export async function waitForOpencodeToolCall(
   toolCallId: string,
   opts: { timeoutMs: number; intervalMs: number }
-) {
+): Promise<OpencodeToolCallEntry | undefined> {
   const start = Date.now();
   while (Date.now() - start < opts.timeoutMs) {
-    const entry = getOpencodeToolCall(toolCallId);
+    const entry = await getOpencodeToolCall(toolCallId);
+    if (entry) return entry;
+    await new Promise((resolve) => setTimeout(resolve, opts.intervalMs));
+  }
+  return undefined;
+}
+
+/**
+ * Wait for OpenCode session with auth check (polling)
+ */
+export async function waitForOpencodeToolCallWithAuth(
+  toolCallId: string,
+  userId: string,
+  opts: { timeoutMs: number; intervalMs: number }
+): Promise<OpencodeToolCallEntry | undefined> {
+  const start = Date.now();
+  while (Date.now() - start < opts.timeoutMs) {
+    const entry = await getOpencodeToolCallWithAuth(toolCallId, userId);
     if (entry) return entry;
     await new Promise((resolve) => setTimeout(resolve, opts.intervalMs));
   }
