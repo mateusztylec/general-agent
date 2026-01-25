@@ -77,6 +77,7 @@ export const OpencodeConfigCoreSchema = z.object({
 
 // LLM configuration with credential reference
 export const LLMConfigSchema = z.object({
+  provider: z.enum(["openai", "anthropic", "google"]),
   model: z.string(),
   systemPrompt: z.string(),
   apiKeyCredentialId: z.string().optional(), // Reference to credentials table

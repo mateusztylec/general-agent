@@ -4,6 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
@@ -20,6 +27,8 @@ type AgentPropertySheetProps = {
   onClose: () => void;
   onUpdate: (nodeId: string, data: Partial<NodeData>) => void;
 };
+
+const LLM_PROVIDERS = ["openai", "anthropic", "google"] as const;
 
 export function AgentPropertySheet({
   node,
@@ -55,12 +64,47 @@ export function AgentPropertySheet({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="agent-description">System Prompt</Label>
-            <Textarea
-              id="agent-description"
-              value={node.data.description}
+            <Label htmlFor="agent-provider">Provider</Label>
+            <Select
+              value={node.data.llmProvider ?? "anthropic"}
+              onValueChange={(value) =>
+                onUpdate(node.id, {
+                  llmProvider: value as (typeof LLM_PROVIDERS)[number],
+                })
+              }
+            >
+              <SelectTrigger id="agent-provider">
+                <SelectValue placeholder="Select provider..." />
+              </SelectTrigger>
+              <SelectContent>
+                {LLM_PROVIDERS.map((provider) => (
+                  <SelectItem key={provider} value={provider}>
+                    {provider}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="agent-model">Model</Label>
+            <Input
+              id="agent-model"
+              value={node.data.llmModel ?? ""}
               onChange={(e) =>
-                onUpdate(node.id, { description: e.target.value })
+                onUpdate(node.id, { llmModel: e.target.value })
+              }
+              placeholder="claude-sonnet-4-5-20250929"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="agent-system-prompt">System Prompt</Label>
+            <Textarea
+              id="agent-system-prompt"
+              value={node.data.llmSystemPrompt ?? ""}
+              onChange={(e) =>
+                onUpdate(node.id, { llmSystemPrompt: e.target.value })
               }
               placeholder="System prompt for the main agent..."
               rows={8}

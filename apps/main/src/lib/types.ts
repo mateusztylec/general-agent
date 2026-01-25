@@ -52,6 +52,9 @@ export interface NodeData extends Record<string, unknown> {
   tools: SubagentToolBlock[];
   skills: SkillBlock[];
   storages: StorageBlock[];
+  llmProvider?: "openai" | "anthropic" | "google";
+  llmModel?: string;
+  llmSystemPrompt?: string;
 }
 
 export interface SelectedBlock {

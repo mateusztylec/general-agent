@@ -67,6 +67,9 @@ const defaultNodes: Node<NodeData>[] = [
       tools: [],
       skills: [],
       storages: [],
+      llmProvider: "anthropic",
+      llmModel: "claude-sonnet-4-5-20250929",
+      llmSystemPrompt: "",
     },
   },
 ];
@@ -108,7 +111,7 @@ function blocksToSkills(blocks: SkillBlock[]): string[] {
   return blocks.map((block) => block.label);
 }
 
-function blocksToStorage(blocks: StorageBlock[]): unknown[] {
+function blocksToStorage(blocks: StorageBlock[]): SubagentConfig["storage"] {
   return blocks.map((block) => ({
     label: block.label,
     description: block.description,
@@ -118,7 +121,7 @@ function blocksToStorage(blocks: StorageBlock[]): unknown[] {
     secretKey: block.secretKey,
     mountPath: block.mountPath,
     accessMode: block.accessMode,
-  }));
+  })) as unknown as SubagentConfig["storage"];
 }
 
 function convertToAgentConfig(
@@ -133,8 +136,12 @@ function convertToAgentConfig(
   const subagentNodes = nodes.filter((node) => node.type === "subagent");
   const subagents: SubagentConfig[] = subagentNodes.map((node) => ({
     name: node.data.label,
-    systemPrompt: node.data.description,
     description: node.data.description,
+    llm: {
+      provider: node.data.llmProvider || "anthropic",
+      model: node.data.llmModel || "claude-sonnet-4-5-20250929",
+      systemPrompt: node.data.llmSystemPrompt ?? "",
+    },
     tools: blocksToTools(node.data.tools),
     permission: blocksToPermissions(node.data.tools),
     skills: blocksToSkills(node.data.skills),
@@ -144,8 +151,12 @@ function convertToAgentConfig(
   return {
     name: agentName,
     mainAgent: {
-      systemPrompt: mainNode.data.description,
-      model: "claude-sonnet-4-5-20250929",
+      llm: {
+        provider: mainNode.data.llmProvider || "anthropic",
+        model: mainNode.data.llmModel || "claude-sonnet-4-5-20250929",
+        systemPrompt:
+          mainNode.data.llmSystemPrompt ?? mainNode.data.description ?? "",
+      },
     },
     subagents,
   };
@@ -429,6 +440,9 @@ function EditorFlow({
           tools: [],
           skills: [],
           storages: [],
+          llmProvider: "anthropic",
+          llmModel: "claude-sonnet-4-5-20250929",
+          llmSystemPrompt: "",
         },
       };
 

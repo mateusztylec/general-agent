@@ -84,10 +84,13 @@ function buildEditorState(config: AgentConfig): {
     targetPosition: Position.Top,
     data: {
       label: "Main Agent",
-      description: config.mainAgent.model || "Primary AI agent",
+      description: "Primary AI agent",
       tools: [],
       skills: [],
       storages: [],
+      llmProvider: config.mainAgent.llm.provider,
+      llmModel: config.mainAgent.llm.model,
+      llmSystemPrompt: config.mainAgent.llm.systemPrompt,
     },
   };
 
@@ -103,6 +106,9 @@ function buildEditorState(config: AgentConfig): {
       tools: toolsToBlocks(subagent.tools),
       skills: skillsToBlocks(subagent.skills),
       storages: storageToBlocks(subagent.storage),
+      llmProvider: subagent.llm?.provider ?? config.mainAgent.llm.provider,
+      llmModel: subagent.llm?.model ?? config.mainAgent.llm.model,
+      llmSystemPrompt: subagent.llm?.systemPrompt ?? "",
     },
   })) satisfies Node<NodeData>[];
 
