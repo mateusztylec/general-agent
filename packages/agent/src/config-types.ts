@@ -88,11 +88,20 @@ export const SubagentLLMConfigSchema = LLMConfigSchema.extend({
 	small_model: z.string().optional(),
 });
 
+// Storage configuration details (non-secret)
+export const StorageConfigDetailsSchema = z.object({
+	label: z.string(),
+	description: z.string(),
+	bucketName: z.string(),
+	mountPath: z.string(),
+	accessMode: z.enum(["readonly", "full"]),
+});
+
 // Storage configuration with credential reference
 export const StorageConfigSchema = z.object({
 	type: z.enum(["s3", "r2"]),
 	credentialId: z.string().optional(), // References credentials table
-	config: z.record(z.string(), z.unknown()).optional(), // Non-secret config like bucket name, region
+	config: StorageConfigDetailsSchema.optional(), // Non-secret config
 });
 
 export const SandboxConfigSchema = z
@@ -198,6 +207,7 @@ export type OpencodeAgentConfig = z.infer<typeof OpencodeAgentConfigSchema>;
 export type OpencodeConfigCore = z.infer<typeof OpencodeConfigCoreSchema>;
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
 export type SubagentLLMConfig = z.infer<typeof SubagentLLMConfigSchema>;
+export type StorageConfigDetails = z.infer<typeof StorageConfigDetailsSchema>;
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
 export type MainAgentConfig = z.infer<typeof MainAgentConfigSchema>;

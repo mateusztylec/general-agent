@@ -2,7 +2,7 @@ import * as dotenv from 'dotenv';
 import { and, eq, isNotNull } from 'drizzle-orm';
 
 // Load env FIRST, before importing db (which creates the connection pool)
-dotenv.config({ path: 'apps/main/.env.local' });
+dotenv.config({ path: '../../apps/main/.env.local' });
 
 const DEFAULT_TEST_EMAIL = 'test@example.com';
 const DEFAULT_TEST_NAME = 'Test User';
@@ -19,7 +19,10 @@ async function createTestUserViaAuthApi(params: {
 
   const response = await fetch(`${baseUrl}/api/auth/sign-up/email`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'origin': baseUrl,
+    },
     body: JSON.stringify(params),
   });
 
@@ -140,16 +143,26 @@ async function seed() {
       config: {
         name: 'Test Agent with Subagent',
         mainAgent: {
-          systemPrompt: 'You are a helpful coding assistant. When you need to execute code or perform complex tasks, use the spawnSubagent tool to delegate work to a specialized subagent running in a secure E2B sandbox with OpenCode.',
-          model: 'claude-sonnet-4-5-20250929',
+          llm: {
+            provider: 'anthropic',
+            model: 'claude-sonnet-4-5-20250929',
+            systemPrompt: 'You are a helpful coding assistant. When you need to execute code or perform complex tasks, use the spawnSubagent tool to delegate work to a specialized subagent running in a secure E2B sandbox with OpenCode.',
+          },
         },
         subagents: [
           {
             name: 'Code Executor',
-            systemPrompt: 'You are an expert code executor. You have access to a full development environment. Execute code, run commands, and provide detailed results.',
             description: 'Use when code execution or file manipulation is needed',
-            skills: [], // No skills for now
+            llm: {
+              provider: 'anthropic',
+              model: 'claude-sonnet-4-5-20250929',
+              systemPrompt: 'You are an expert code executor. You have access to a full development environment. Execute code, run commands, and provide detailed results.',
+            },
+            skills: [],
             storage: [],
+            sandbox: {
+              internetAccess: false,
+            },
             tools: {
               "bash": true,
               "edit": true,

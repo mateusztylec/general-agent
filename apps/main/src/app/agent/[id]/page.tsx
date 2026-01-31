@@ -44,29 +44,33 @@ function storageToBlocks(storage?: unknown[]): StorageBlock[] {
     .map((entry, index) => {
       if (!entry || typeof entry !== "object") return null;
       const record = entry as Record<string, unknown>;
+
+      // Handle new format with credentialId and config object
+      const config = record.config as Record<string, unknown> | undefined;
+      if (!config || typeof config !== "object") return null;
+
       if (
-        typeof record.label !== "string" ||
-        typeof record.description !== "string" ||
-        typeof record.endpoint !== "string" ||
-        typeof record.bucketName !== "string" ||
-        typeof record.accessKey !== "string" ||
-        typeof record.secretKey !== "string" ||
-        typeof record.mountPath !== "string" ||
-        (record.accessMode !== "readonly" && record.accessMode !== "full")
+        (record.type !== "s3" && record.type !== "r2") ||
+        typeof record.credentialId !== "string" ||
+        typeof config.label !== "string" ||
+        typeof config.description !== "string" ||
+        typeof config.bucketName !== "string" ||
+        typeof config.mountPath !== "string" ||
+        (config.accessMode !== "readonly" && config.accessMode !== "full")
       ) {
         return null;
       }
+
       return {
         id: `storage-${index + 1}`,
         type: "storage",
-        label: record.label,
-        description: record.description,
-        endpoint: record.endpoint,
-        bucketName: record.bucketName,
-        accessKey: record.accessKey,
-        secretKey: record.secretKey,
-        mountPath: record.mountPath,
-        accessMode: record.accessMode,
+        storageType: record.type as "s3" | "r2",
+        label: config.label,
+        description: config.description,
+        credentialId: record.credentialId,
+        bucketName: config.bucketName,
+        mountPath: config.mountPath,
+        accessMode: config.accessMode as "readonly" | "full",
       } satisfies StorageBlock;
     })
     .filter((entry): entry is StorageBlock => Boolean(entry));

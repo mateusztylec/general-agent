@@ -87,12 +87,11 @@ export function EditorSidebar() {
       newBlock = {
         id: `block-${blockId++}`,
         type: "storage",
+        storageType: "r2",
         label: "New Storage",
         description: "R2 Storage Configuration",
-        endpoint: "",
+        credentialId: "", // Will be set when user selects credential
         bucketName: "",
-        accessKey: "",
-        secretKey: "",
         mountPath: "/mnt/storage",
         accessMode: "readonly",
       } satisfies StorageBlock;

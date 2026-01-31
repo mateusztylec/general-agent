@@ -7,16 +7,14 @@ export type CredentialData = {
     apiKey: string;
   };
   s3_credentials: {
+    endpoint: string;
     accessKeyId: string;
     secretAccessKey: string;
-    region: string;
-    bucket?: string;
   };
   r2_credentials: {
+    endpoint: string;
     accessKeyId: string;
     secretAccessKey: string;
-    accountId: string;
-    bucket?: string;
   };
   aws_credentials: {
     accessKeyId: string;

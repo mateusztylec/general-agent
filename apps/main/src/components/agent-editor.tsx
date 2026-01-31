@@ -114,15 +114,16 @@ function blocksToSkills(blocks: SkillBlock[]): string[] {
 
 function blocksToStorage(blocks: StorageBlock[]): SubagentConfig["storage"] {
   return blocks.map((block) => ({
-    label: block.label,
-    description: block.description,
-    endpoint: block.endpoint,
-    bucketName: block.bucketName,
-    accessKey: block.accessKey,
-    secretKey: block.secretKey,
-    mountPath: block.mountPath,
-    accessMode: block.accessMode,
-  })) as unknown as SubagentConfig["storage"];
+    type: block.storageType,
+    credentialId: block.credentialId,
+    config: {
+      label: block.label,
+      description: block.description,
+      bucketName: block.bucketName,
+      mountPath: block.mountPath,
+      accessMode: block.accessMode,
+    },
+  }));
 }
 
 function convertToAgentConfig(

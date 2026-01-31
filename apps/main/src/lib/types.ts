@@ -34,12 +34,11 @@ export interface SkillBlock {
 export interface StorageBlock {
   id: string;
   type: "storage";
+  storageType: "s3" | "r2";
   label: string;
   description: string;
-  endpoint: string;
+  credentialId: string; // Reference to credentials table (includes endpoint)
   bucketName: string;
-  accessKey: string;
-  secretKey: string;
   mountPath: string;
   accessMode: "readonly" | "full";
 }
