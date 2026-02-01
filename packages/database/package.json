@@ -13,6 +13,7 @@
         "./schema": "./src/schema.ts",
         "./client": "./src/client.ts",
         "./queries/agents": "./src/queries/agents.ts",
+        "./queries/credentials": "./src/queries/credentials.ts",
         "./queries/opencode-sessions": "./src/queries/opencode-sessions.ts"
     },
     "dependencies": {
