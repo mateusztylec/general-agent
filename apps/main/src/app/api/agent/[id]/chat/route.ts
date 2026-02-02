@@ -1,14 +1,12 @@
-import { convertToModelMessages, streamText } from 'ai';
-import { anthropic } from '@/lib/integrations/ai';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
 import { eq, and } from 'drizzle-orm';
-import { spawnSubagent } from '@/lib/agent/subagent-spawner';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
+import { spawnAgentRun } from '@/lib/agent/agent-spawner';
+import { getSkillsForAgent } from '@general-agent/database/queries/skills';
 
 export async function POST(
   request: NextRequest,
@@ -28,8 +26,15 @@ export async function POST(
     }
 
     const { id: agentId } = await params;
-    const { messages } = await request.json();
-    const modelMessages = await convertToModelMessages(messages ?? []);
+    const body = await request.json().catch(() => null);
+    const task = typeof body?.task === 'string' ? body.task.trim() : '';
+
+    if (!task) {
+      return new Response(
+        JSON.stringify({ error: 'Task is required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Load agent config from DB and verify ownership
     const [agent] = await db
@@ -52,74 +57,18 @@ export async function POST(
 
     // Extract config
     const config = parseAgentConfig(agent.config);
-    const systemPrompt =
-      config.mainAgent.llm?.systemPrompt || 'You are a helpful AI assistant.';
+    const skills = await getSkillsForAgent(db, agentId);
+    const skillNames = skills.map((skill) => skill.name);
 
-    // Stream response with tool calling
-    const result = streamText({
-      model: anthropic('claude-sonnet-4-5-20250929'),
-      system: systemPrompt,
-      messages: modelMessages,
-      experimental_telemetry: {
-        isEnabled: true,
-      },
-      tools: {
-        spawnSubagent: {
-          description: 'Spawn a subagent on E2B sandbox to execute OpenCode tasks',
-          inputSchema: z.object({
-            task: z.string().describe('The task for the subagent to perform'),
-            systemPrompt: z.string().optional().describe('Optional system prompt for the subagent'),
-          }),
-          execute: async (
-            { task, systemPrompt: subSystemPrompt },
-            options?: { toolCallId?: string }
-          ) => {
-            console.log('Spawning subagent:', { task, systemPrompt: subSystemPrompt, toolCallIdFromOptions: options?.toolCallId });
-
-            // Get first subagent config from agent config
-            const subagents = config.subagents || [];
-            if (subagents.length === 0) {
-              throw new Error('No subagents configured for this agent');
-            }
-
-            const subagentBase = subagents[0]; // Use first subagent for now
-            const subagentConfig = {
-              ...subagentBase,
-              systemPrompt: subSystemPrompt ?? subagentBase.llm?.systemPrompt,
-            };
-
-            // Spawn subagent on E2B
-            const toolCallId = options?.toolCallId ?? crypto.randomUUID();
-            console.log('Using toolCallId:', { toolCallId, fromOptions: !!options?.toolCallId });
-            const result = await spawnSubagent(
-              subagentConfig,
-              task,
-              toolCallId,
-              {
-                userId: session.user.id,
-                agentId,
-              }
-            );
-
-            return {
-              status: 'success',
-              sandboxId: result.sandboxId,
-              sessionId: result.sessionId,
-              output: result.output,
-            };
-          },
-        },
-      },
-      onFinish: (result) => {
-        console.log('Chat finished:', {
-          agentId,
-          usage: result.usage,
-          finishReason: result.finishReason,
-        });
-      },
+    const run = await spawnAgentRun(config, skillNames, task, {
+      userId: session.user.id,
+      agentId,
     });
 
-    return result.toUIMessageStreamResponse();
+    return new Response(
+      JSON.stringify(run),
+      { status: 200, headers: { 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Chat API error:', error);

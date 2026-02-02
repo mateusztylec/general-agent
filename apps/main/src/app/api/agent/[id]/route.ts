@@ -25,28 +25,30 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { config } = body;
+    const { config, name, skillIds } = body;
 
-    // Validate config structure and apply defaults
-    let parsedConfig;
-    try {
-      parsedConfig = parseAgentConfig(config);
-    } catch (error) {
-      const details = error instanceof z.ZodError ? error.issues : String(error);
-      console.error('Config validation failed:', details);
-      return new Response(
-        JSON.stringify({
-          error: 'Invalid agent config format',
-          details
-        }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
+    // Validate config structure if provided
+    if (config) {
+      try {
+        parseAgentConfig(config);
+      } catch (error) {
+        const details = error instanceof z.ZodError ? error.issues : String(error);
+        console.error('Config validation failed:', details);
+        return new Response(
+          JSON.stringify({
+            error: 'Invalid agent config format',
+            details
+          }),
+          { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     // Update agent
     const updated = await updateAgent(db, {
       id,
-      config: parsedConfig,
+      ...(config && { config }),
+      ...(name && { name }),
     });
 
     if (!updated) {

@@ -1,36 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useChat } from '@ai-sdk/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { DefaultChatTransport } from 'ai';
 import { OpencodeSteps } from '@/components/opencode/opencode-steps';
 
-type ToolPartShape = {
-  type: string;
+type AgentRun = {
+  id: string;
+  task: string;
   toolCallId: string;
-  state?: string;
-  output?: unknown;
 };
-
-function isToolPart(part: unknown): part is ToolPartShape {
-  return (
-    typeof part === 'object' &&
-    part !== null &&
-    'toolCallId' in part &&
-    typeof (part as { toolCallId?: unknown }).toolCallId === 'string'
-  );
-}
-
-function getToolOutputText(output: unknown): string | null {
-  if (typeof output === 'string') return output;
-  if (output && typeof output === 'object' && 'output' in output) {
-    const value = (output as { output?: unknown }).output;
-    if (typeof value === 'string') return value;
-  }
-  return null;
-}
 
 interface ChatInterfaceProps {
   agentId: string;
@@ -38,96 +17,75 @@ interface ChatInterfaceProps {
 
 export function ChatInterface({ agentId }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
+  const [runs, setRuns] = useState<AgentRun[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const { messages, sendMessage, status, error } = useChat({
-    transport: new DefaultChatTransport({
-      api: `/api/agent/${agentId}/chat`,
-    }),
-  });
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (input.trim()) {
-      sendMessage({ text: input });
+    const task = input.trim();
+    if (!task) return;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/agent/${agentId}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || 'Failed to start agent run');
+      }
+
+      const data = await response.json();
+      if (!data?.toolCallId) {
+        throw new Error('Missing toolCallId from server');
+      }
+
+      setRuns((prev) => [
+        { id: data.toolCallId, task, toolCallId: data.toolCallId },
+        ...prev,
+      ]);
       setInput('');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isLoading = status === 'streaming' || status === 'submitted';
-
   return (
     <div className="flex flex-col h-full">
-      {/* Messages */}
+      {/* Runs */}
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
-          {messages.length === 0 && (
+        <div className="space-y-6">
+          {runs.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
-              Start a conversation with your agent
+              Start a run for your agent
             </div>
           )}
 
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-            >
-              <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${message.role === 'user'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted'
-                  }`}
-              >
-                <div className="text-sm font-medium mb-1">
-                  {message.role === 'user' ? 'You' : 'Agent'}
-                </div>
-                <div className="whitespace-pre-wrap">
-                  {message.parts?.map((part, idx) => {
-                    if (part.type === 'text') {
-                      return <div key={idx}>{part.text}</div>;
-                    }
-                    if (isToolPart(part)) {
-                      const outputText =
-                        part.state === 'output-available'
-                          ? getToolOutputText(part.output)
-                          : null;
-                      return (
-                        <div key={idx} className="mt-2 space-y-2">
-                          <div className="text-xs opacity-75">
-                            🔧 {part.type}
-                          </div>
-                          <OpencodeSteps toolCallId={part.toolCallId} />
-                          {outputText && (
-                            <div className="text-sm">{outputText}</div>
-                          )}
-                        </div>
-                      );
-                    }
-                    return null;
-                  })}
-                </div>
+          {runs.map((run, index) => (
+            <div key={run.id} className="rounded-lg border bg-muted/40 p-4 space-y-3">
+              <div className="text-xs uppercase text-muted-foreground tracking-wide">
+                Run {runs.length - index}
               </div>
+              <div className="text-sm whitespace-pre-wrap">{run.task}</div>
+              <OpencodeSteps toolCallId={run.toolCallId} />
             </div>
           ))}
-
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-muted rounded-lg px-4 py-2">
-                <div className="flex items-center space-x-2">
-                  <div className="animate-pulse">●</div>
-                  <div className="animate-pulse">●</div>
-                  <div className="animate-pulse">●</div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
       {/* Error display */}
       {error && (
         <div className="px-4 py-2 bg-destructive/10 text-destructive text-sm">
-          Error: {error.message}
+          Error: {error}
         </div>
       )}
 

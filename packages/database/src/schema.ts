@@ -80,3 +80,20 @@ export const opencodeSessions = pgTable('opencode_sessions', {
   expiresAt: timestamp('expires_at').notNull(), // Auto-cleanup threshold
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
+
+// Skills - reusable code modules stored as files on disk
+// Files are stored at /app/data/skills/{name}/ and referenced by globally unique name
+export const skills = pgTable('skills', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
+  name: text('name').notNull().unique(), // Globally unique, immutable, used as folder name
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// Agent-Skills junction table - many-to-many relationship
+export const agentSkills = pgTable('agent_skills', {
+  agentId: uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+  skillId: uuid('skill_id').notNull().references(() => skills.id, { onDelete: 'cascade' }),
+});

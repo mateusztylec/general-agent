@@ -81,11 +81,7 @@ export const LLMConfigSchema = z.object({
 	model: z.string(),
 	systemPrompt: z.string(),
 	apiKeyCredentialId: z.string().optional(), // Reference to credentials table
-});
-
-// Extended LLM config for subagents with small_model support
-export const SubagentLLMConfigSchema = LLMConfigSchema.extend({
-	small_model: z.string().optional(),
+	small_model: z.string().optional(), // For fast operations
 });
 
 // Storage configuration details (non-secret)
@@ -110,32 +106,21 @@ export const SandboxConfigSchema = z
 	})
 	.strict();
 
-export const MainAgentConfigSchema = z.object({
+// Simplified AgentConfig - single OpenCode instance
+// Skills are managed via agent_skills junction table (not in config)
+export const AgentConfigSchema = z.object({
 	llm: LLMConfigSchema,
-});
-
-export const SubagentConfigSchema = z.object({
-	name: z.string(),
-	description: z.string(),
-	skills: z.array(z.string()),
-	storage: z.array(StorageConfigSchema),
-	sandbox: SandboxConfigSchema.default({ internetAccess: false }),
-	llm: SubagentLLMConfigSchema.optional(),
 	tools: OpencodeToolsMapSchema.optional(),
 	permission: OpencodePermissionMapSchema.optional(),
-});
-
-export const AgentConfigSchema = z.object({
-	name: z.string(),
-	mainAgent: MainAgentConfigSchema,
-	subagents: z.array(SubagentConfigSchema),
+	storage: z.array(StorageConfigSchema).optional(),
+	sandbox: SandboxConfigSchema.default({ internetAccess: false }),
 });
 
 /**
- * Subagent tool definitions with descriptions
- * These are the OpenCode tools available to subagents running in sandboxes
+ * Agent tool definitions with descriptions
+ * These are the OpenCode tools available to agents running in sandboxes
  */
-export const SUBAGENT_TOOL_DEFINITIONS = {
+export const AGENT_TOOL_DEFINITIONS = {
 	bash: {
 		name: "bash",
 		description: "Execute bash commands in the sandbox",
@@ -206,12 +191,9 @@ export type OpencodeToolsMap = Partial<Record<AvailableTool, boolean>>;
 export type OpencodeAgentConfig = z.infer<typeof OpencodeAgentConfigSchema>;
 export type OpencodeConfigCore = z.infer<typeof OpencodeConfigCoreSchema>;
 export type LLMConfig = z.infer<typeof LLMConfigSchema>;
-export type SubagentLLMConfig = z.infer<typeof SubagentLLMConfigSchema>;
 export type StorageConfigDetails = z.infer<typeof StorageConfigDetailsSchema>;
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
-export type MainAgentConfig = z.infer<typeof MainAgentConfigSchema>;
-export type SubagentConfig = z.infer<typeof SubagentConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = AgentConfig;
 

@@ -86,14 +86,10 @@ cd packages/sandbox && bun run build-template
 3. Stream events from OpenCode sandbox to frontend
 4. Clean up session entry after completion
 
-### Hybrid Architecture Pattern
+### Agent Architecture Pattern
 
-The system uses a **hybrid main agent + sandboxed subagents** pattern:
-
-- **Main Agent**: Runs in-process using Vercel AI SDK with Claude, handles tool calling and orchestration
-- **Subagents**: Run fully isolated in E2B sandboxes as OpenCode instances with configurable tool access
-
-This allows the main orchestrator to remain stateful while workers execute in secure, ephemeral environments.
+Each **agent** runs as a single OpenCode instance inside its own E2B sandbox.
+There is no in-process "main agent" or separate subagent layer.
 
 ### Visual Agent Configuration
 
@@ -109,32 +105,21 @@ Located in `packages/agent/src/config-types.ts`:
 
 ```typescript
 AgentConfig {
-  name: string
-  mainAgent: {
-    llm: {
-      provider: "openai" | "anthropic" | "google"
-      model: string
-      systemPrompt: string
-      apiKeyCredentialId: string
-    }
+  llm: {
+    provider: "openai" | "anthropic" | "google"
+    model: string
+    systemPrompt: string
+    apiKeyCredentialId: string
+    small_model?: string
   }
-  subagents: [{
-    name: string
-    description: string
-    llm: {
-      provider, model, systemPrompt, apiKeyCredentialId
-      small_model?: string  // For fast operations
-    }
-    tools: ["bash", "edit", "write", "read", "grep", "glob", ...]  // 14 available
-    permission: [{ tool: string, policy: "allow" | "deny" }]
-    skills: [{ name: string, url: string }]  // Custom OpenCode skills
-    storage: [{ type: "s3" | "r2", credentialId: string, ... }]
-    sandbox: { internet: boolean }
-  }]
+  tools: { [toolName]: boolean }
+  permission: { [toolName]: "allow" | "deny" }
+  storage: [{ type: "s3" | "r2", credentialId: string, ... }]
+  sandbox: { internetAccess: boolean }
 }
 ```
 
-Tool definitions are in `SUBAGENT_TOOL_DEFINITIONS` - these are the core capabilities subagents can access.
+Tool definitions are in `AGENT_TOOL_DEFINITIONS` - these are the core capabilities agents can access.
 
 ### Database Schema (Drizzle + PostgreSQL)
 
@@ -239,17 +224,17 @@ VERCEL_AI_GATEWAY_API_KEY=  # For AI gateway
 
 ## Common Patterns
 
-### Adding a New Tool to Subagents
+### Adding a New Tool to Agents
 
-1. Add tool definition to `SUBAGENT_TOOL_DEFINITIONS` in `packages/agent/src/config-types.ts`
-2. Update `SubagentConfig` schema to include new tool in enum
+1. Add tool definition to `AGENT_TOOL_DEFINITIONS` in `packages/agent/src/config-types.ts`
+2. Update `AvailableToolSchema` and related maps if needed
 3. OpenCode will automatically recognize the tool if it's built-in
 
 ### Creating a Custom Skill
 
 1. Write skill as standalone script (bash, python, etc.)
 2. Upload via agent editor UI or directly to sandbox
-3. Reference in `skills` array of subagent config
+3. Attach the skill to the agent (UI saves to `agent_skills`)
 4. Skills are uploaded to `~/.opencode/skills/` during sandbox initialization
 
 ### Adding a New Credential Type

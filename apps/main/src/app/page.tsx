@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { UserMenu } from "@/components/user-menu";
+import { CreateAgentDialog } from "@/components/create-agent-dialog";
 import { db } from "@general-agent/database/client";
 import { getAgentsByUserId } from "@general-agent/database/queries/agents";
 
@@ -32,10 +33,13 @@ export default async function Home() {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <UserMenu userName={session.user.name || session.user.email} />
-            <Button>
-              Create Agent
+            <Button variant="outline" asChild>
+              <Link href="/skills">
+                Skills
+              </Link>
             </Button>
+            <UserMenu userName={session.user.name || session.user.email} />
+            <CreateAgentDialog />
           </div>
         </div>
 

@@ -1,8 +1,7 @@
-import type { SubagentConfig } from '@general-agent/agent/config-types';
+import type { AgentConfig } from '@general-agent/agent/config-types';
 import {
-  createSubagentSession,
-  executeSubagentTask,
-  type SpawnSubagentResult,
+  createAgentSession,
+  executeAgentTask,
   type GetCredentialFn,
 } from '@general-agent/sandbox/spawner';
 import { serverEnv } from '@/lib/config/env-server';
@@ -16,7 +15,7 @@ import { decryptCredentials } from '@general-agent/encryption/credentials';
  */
 function createCredentialFetcher(userId: string): GetCredentialFn {
   return async (credentialId: string) => {
-    console.log('[Subagent Spawner] Fetching credential:', credentialId);
+    console.log('[Agent Spawner] Fetching credential:', credentialId);
 
     const credential = await getCredentialByIdAndUser(db, credentialId, userId);
     const decryptedData = decryptCredentials(credential.data);
@@ -29,34 +28,36 @@ function createCredentialFetcher(userId: string): GetCredentialFn {
 }
 
 /**
- * Spawns a subagent on E2B sandbox with OpenCode (2-phase approach)
+ * Spawns an agent OpenCode session (2-phase approach)
  * Phase 1: Create session and register in DB (frontend can start subscribing)
  * Phase 2: Execute task (events are streamed to frontend)
  */
-export async function spawnSubagent(
-  subagentConfig: SubagentConfig,
+export async function spawnAgentRun(
+  agentConfig: AgentConfig,
+  skillNames: string[],
   task: string,
-  toolCallId: string,
   metadata: {
     userId: string;
     agentId: string;
   }
-): Promise<SpawnSubagentResult> {
-
+): Promise<{ toolCallId: string; sessionId: string }> {
   // Phase 1: Create session (DON'T send prompt yet)
-  console.log('[Subagent Spawner] Phase 1: Creating session...');
-  const session = await createSubagentSession(
-    subagentConfig,
+  console.log('[Agent Spawner] Phase 1: Creating session...');
+  const session = await createAgentSession(
+    agentConfig,
     {
       AI_GATEWAY_API_KEY: serverEnv.VERCEL_AI_GATEWAY_API_KEY,
       OPENAI_API_KEY: serverEnv.OPENAI_API_KEY,
       ANTHROPIC_API_KEY: serverEnv.ANTHROPIC_API_KEY,
     },
-    createCredentialFetcher(metadata.userId)
+    createCredentialFetcher(metadata.userId),
+    skillNames
   );
 
+  const toolCallId = crypto.randomUUID();
+
   // Register in DB - frontend can now subscribe to events!
-  console.log('[Subagent Spawner] Registering session in DB...');
+  console.log('[Agent Spawner] Registering session in DB...');
   await setOpencodeToolCall(toolCallId, {
     sessionId: session.sessionId,
     url: session.url,
@@ -66,13 +67,18 @@ export async function spawnSubagent(
   });
 
   // Phase 2: Execute task (events will be streamed)
-  console.log('[Subagent Spawner] Phase 2: Executing task...');
-  const result = await executeSubagentTask(session, subagentConfig, task);
+  console.log('[Agent Spawner] Phase 2: Executing task...');
+  void executeAgentTask(session, agentConfig, task).catch((error) => {
+    console.error('[Agent Spawner] Phase 2 error:', error);
+  });
 
-  return result;
+  return {
+    toolCallId,
+    sessionId: session.sessionId,
+  };
 }
 
 /**
  * Kill a running sandbox
  */
-export { killSandbox as killSubagent } from '@general-agent/sandbox/spawner';
+export { killSandbox as killAgent } from '@general-agent/sandbox/spawner';

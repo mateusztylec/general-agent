@@ -13,8 +13,8 @@ export default async function AgentChatPage({
       {/* Header */}
       <div className="border-b px-4 py-3 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold">Chat with Agent</h1>
-          <p className="text-sm text-muted-foreground">ID: {id}</p>
+          <h1 className="text-lg font-semibold">Run Agent</h1>
+          <p className="text-sm text-muted-foreground">Agent ID: {id}</p>
         </div>
         <Button variant="outline" size="sm" asChild>
           <Link href={`/agent/${id}`}>

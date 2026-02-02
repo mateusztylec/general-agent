@@ -139,48 +139,33 @@ async function seed() {
     // Insert test agent
     const [agent] = await db.insert(schema.agents).values({
       userId: testUser.id,
-      name: 'Test Agent with Subagent',
+      name: 'Test Agent',
       config: {
-        name: 'Test Agent with Subagent',
-        mainAgent: {
-          llm: {
-            provider: 'anthropic',
-            model: 'claude-sonnet-4-5-20250929',
-            systemPrompt: 'You are a helpful coding assistant. When you need to execute code or perform complex tasks, use the spawnSubagent tool to delegate work to a specialized subagent running in a secure E2B sandbox with OpenCode.',
-          },
+        llm: {
+          provider: 'anthropic',
+          model: 'claude-sonnet-4-5-20250929',
+          systemPrompt: 'You are a helpful coding assistant.',
         },
-        subagents: [
-          {
-            name: 'Code Executor',
-            description: 'Use when code execution or file manipulation is needed',
-            llm: {
-              provider: 'anthropic',
-              model: 'claude-sonnet-4-5-20250929',
-              systemPrompt: 'You are an expert code executor. You have access to a full development environment. Execute code, run commands, and provide detailed results.',
-            },
-            skills: [],
-            storage: [],
-            sandbox: {
-              internetAccess: false,
-            },
-            tools: {
-              "bash": true,
-              "edit": true,
-              "write": true,
-              "read": true,
-              "grep": true,
-              "glob": true,
-              "list": true,
-              "lsp": true,
-              "patch": true,
-              "skill": true,
-              "todowrite": true,
-              "todoread": true,
-              "webfetch": true,
-              "question": true,
-            }
-          },
-        ],
+        tools: {
+          "bash": true,
+          "edit": true,
+          "write": true,
+          "read": true,
+          "grep": true,
+          "glob": true,
+          "list": true,
+          "lsp": true,
+          "patch": true,
+          "skill": true,
+          "todowrite": true,
+          "todoread": true,
+          "webfetch": true,
+          "question": true,
+        },
+        storage: [],
+        sandbox: {
+          internetAccess: false,
+        },
       },
     }).returning();
 

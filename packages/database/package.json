@@ -14,7 +14,8 @@
         "./client": "./src/client.ts",
         "./queries/agents": "./src/queries/agents.ts",
         "./queries/credentials": "./src/queries/credentials.ts",
-        "./queries/opencode-sessions": "./src/queries/opencode-sessions.ts"
+        "./queries/opencode-sessions": "./src/queries/opencode-sessions.ts",
+        "./queries/skills": "./src/queries/skills.ts"
     },
     "dependencies": {
         "drizzle-orm": "^0.45.1",

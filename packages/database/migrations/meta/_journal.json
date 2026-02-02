@@ -29,6 +29,20 @@
       "when": 1769307193640,
       "tag": "0003_bored_salo",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1770021153645,
+      "tag": "0004_vengeful_the_fury",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1770049128861,
+      "tag": "0005_crazy_smasher",
+      "breakpoints": true
     }
   ]
 }

@@ -1,8 +1,8 @@
-import * as dotenv from 'dotenv';
+import * as dotenv from "dotenv";
 import { Template, defaultBuildLogger } from "e2b";
 import { TEMPLATE_ALIAS, opencodeTemplate } from "../src/template.js";
 
-dotenv.config({ path: '../../apps/main/.env.local' });
+dotenv.config({ path: "../../apps/main/.env.local" });
 
 /**
  * Build E2B Sandbox Template with OpenCode pre-installed
