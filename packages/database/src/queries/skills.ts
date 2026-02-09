@@ -1,7 +1,6 @@
 import { eq, and } from "drizzle-orm";
-import type { Database } from "../client";
 import { db } from "../client";
-import { skills, agentSkills } from "../schema";
+import { customSkills } from "../schema";
 
 export interface CreateSkillInput {
 	userId: string;
@@ -18,7 +17,7 @@ export interface UpdateSkillInput {
  */
 export async function createSkill(input: CreateSkillInput) {
 	const [skill] = await db
-		.insert(skills)
+		.insert(customSkills)
 		.values({
 			userId: input.userId,
 			name: input.name,
@@ -33,8 +32,8 @@ export async function createSkill(input: CreateSkillInput) {
  * Get a skill by name
  */
 export async function getSkillByName(name: string) {
-	return await db.query.skills.findFirst({
-		where: eq(skills.name, name),
+	return await db.query.customSkills.findFirst({
+		where: eq(customSkills.name, name),
 	});
 }
 
@@ -42,27 +41,27 @@ export async function getSkillByName(name: string) {
  * Get a skill by name for a specific user (for access control)
  */
 export async function getSkillByNameForUser(name: string, userId: string) {
-	return await db.query.skills.findFirst({
-		where: and(eq(skills.name, name), eq(skills.userId, userId)),
+	return await db.query.customSkills.findFirst({
+		where: and(eq(customSkills.name, name), eq(customSkills.userId, userId)),
 	});
 }
 
 /**
- * List all skills
+ * List all customSkills
  */
 export async function listAllSkills() {
-	return await db.query.skills.findMany({
-		orderBy: (skills, { asc }) => [asc(skills.name)],
+	return await db.query.customSkills.findMany({
+		orderBy: (customSkills, { asc }) => [asc(customSkills.name)],
 	});
 }
 
 /**
- * List skills for a specific user
+ * List customSkills for a specific user
  */
 export async function listSkillsForUser(userId: string) {
-	return await db.query.skills.findMany({
-		where: eq(skills.userId, userId),
-		orderBy: (skills, { asc }) => [asc(skills.name)],
+	return await db.query.customSkills.findMany({
+		where: eq(customSkills.userId, userId),
+		orderBy: (customSkills, { asc }) => [asc(customSkills.name)],
 	});
 }
 
@@ -75,12 +74,12 @@ export async function updateSkill(
 	input: UpdateSkillInput,
 ) {
 	const [updated] = await db
-		.update(skills)
+		.update(customSkills)
 		.set({
 			...input,
 			updatedAt: new Date(),
 		})
-		.where(and(eq(skills.name, name), eq(skills.userId, userId)))
+		.where(and(eq(customSkills.name, name), eq(customSkills.userId, userId)))
 		.returning();
 
 	return updated;
@@ -91,80 +90,29 @@ export async function updateSkill(
  */
 export async function deleteSkill(name: string, userId: string) {
 	const [deleted] = await db
-		.delete(skills)
-		.where(and(eq(skills.name, name), eq(skills.userId, userId)))
+		.delete(customSkills)
+		.where(and(eq(customSkills.name, name), eq(customSkills.userId, userId)))
 		.returning();
 
 	return deleted;
 }
 
 /**
- * Get skills for an agent
+ * Get a skill by ID
  */
-export async function getSkillsForAgent(database: Database, agentId: string) {
-	const result = await database
-		.select({
-			id: skills.id,
-			userId: skills.userId,
-			name: skills.name,
-			description: skills.description,
-			createdAt: skills.createdAt,
-			updatedAt: skills.updatedAt,
-		})
-		.from(agentSkills)
-		.innerJoin(skills, eq(agentSkills.skillId, skills.id))
-		.where(eq(agentSkills.agentId, agentId));
-
-	return result;
-}
-
-/**
- * Add a skill to an agent
- */
-export async function addSkillToAgent(
-	database: Database,
-	agentId: string,
-	skillId: string,
-) {
-	await database.insert(agentSkills).values({
-		agentId,
-		skillId,
+export async function getSkillById(id: string) {
+	return await db.query.customSkills.findFirst({
+		where: eq(customSkills.id, id),
 	});
 }
 
 /**
- * Remove a skill from an agent
+ * Get multiple skills by IDs
  */
-export async function removeSkillFromAgent(
-	database: Database,
-	agentId: string,
-	skillId: string,
-) {
-	await database
-		.delete(agentSkills)
-		.where(
-			and(eq(agentSkills.agentId, agentId), eq(agentSkills.skillId, skillId)),
-		);
-}
+export async function getSkillsByIds(ids: string[]) {
+	if (ids.length === 0) return [];
 
-/**
- * Set skills for an agent (replaces all existing skills)
- */
-export async function setSkillsForAgent(
-	database: Database,
-	agentId: string,
-	skillIds: string[],
-) {
-	// Delete all existing skills for this agent
-	await database.delete(agentSkills).where(eq(agentSkills.agentId, agentId));
-
-	// Insert new skills
-	if (skillIds.length > 0) {
-		await database.insert(agentSkills).values(
-			skillIds.map((skillId) => ({
-				agentId,
-				skillId,
-			})),
-		);
-	}
+	return await db.query.customSkills.findMany({
+		where: (customSkills, { inArray }) => inArray(customSkills.id, ids),
+	});
 }

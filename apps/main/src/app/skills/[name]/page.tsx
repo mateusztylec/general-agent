@@ -5,15 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CodeEditor } from "@/components/code-editor";
+import { FileTree } from "@/components/file-tree";
 import {
 	FileText,
-	FolderOpen,
-	Trash2,
 	Plus,
 	Save,
 	ArrowLeft,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 
@@ -218,34 +216,12 @@ export default function SkillEditorPage({ params }: SkillEditorPageProps) {
 					</div>
 
 					<ScrollArea className="flex-1">
-						<div className="p-2">
-							{fileList.map((path) => (
-								<button
-									key={path}
-									type="button"
-									onClick={() => handleFileSelect(path)}
-									className={cn(
-										"w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent group",
-										selectedFile === path && "bg-accent",
-									)}
-								>
-									<div className="flex items-center gap-2 flex-1 min-w-0">
-										<FileText className="h-4 w-4 flex-shrink-0" />
-										<span className="truncate">{path}</span>
-									</div>
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											handleDeleteFile(path);
-										}}
-										className="opacity-0 group-hover:opacity-100 hover:text-destructive"
-									>
-										<Trash2 className="h-3 w-3" />
-									</button>
-								</button>
-							))}
-						</div>
+						<FileTree
+							paths={fileList}
+							selectedPath={selectedFile}
+							onSelect={handleFileSelect}
+							onDelete={handleDeleteFile}
+						/>
 					</ScrollArea>
 
 					{/* Add file input */}

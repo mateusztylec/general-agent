@@ -44,15 +44,36 @@ export function AgentEditorClient({
   const [activeTab, setActiveTab] = useState<Tab>("tools");
   const [agentName, setAgentName] = useState(initialAgentName);
   const [config, setConfig] = useState<AgentConfig>(initialConfig);
-  const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>(
-    initialSkills.map((s) => s.id)
-  );
   const [isSaving, setIsSaving] = useState(false);
+
+  // Extract prebuilt and custom skills from config
+  const selectedPrebuiltSkills = config.skills?.prebuilt || [];
+  const selectedCustomSkillIds = config.skills?.custom || [];
+
+  const handlePrebuiltSkillsChange = (skillNames: string[]) => {
+    setConfig({
+      ...config,
+      skills: {
+        prebuilt: skillNames,
+        custom: config.skills?.custom || [],
+      },
+    });
+  };
+
+  const handleCustomSkillsChange = (skillIds: string[]) => {
+    setConfig({
+      ...config,
+      skills: {
+        prebuilt: config.skills?.prebuilt || [],
+        custom: skillIds,
+      },
+    });
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Save config and name
+      // Save config and name (skills are now in config)
       const configResponse = await fetch(`/api/agent/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -62,18 +83,6 @@ export function AgentEditorClient({
       if (!configResponse.ok) {
         const error = await configResponse.json();
         throw new Error(error.error || "Failed to save config");
-      }
-
-      // Save skills
-      const skillsResponse = await fetch(`/api/agent/${agentId}/skills`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skillIds: selectedSkillIds }),
-      });
-
-      if (!skillsResponse.ok) {
-        const error = await skillsResponse.json();
-        throw new Error(error.error || "Failed to save skills");
       }
 
       toast.success("Saved successfully");
@@ -171,8 +180,10 @@ export function AgentEditorClient({
           )}
           {activeTab === "skills" && (
             <SkillsTab
-              selectedSkillIds={selectedSkillIds}
-              onChange={setSelectedSkillIds}
+              selectedPrebuiltSkills={selectedPrebuiltSkills}
+              selectedCustomSkillIds={selectedCustomSkillIds}
+              onPrebuiltChange={handlePrebuiltSkillsChange}
+              onCustomChange={handleCustomSkillsChange}
             />
           )}
           {activeTab === "prompt" && (

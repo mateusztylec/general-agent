@@ -30,7 +30,7 @@ async function createTestUserViaAuthApi(params: {
     const bodyText = await response.text();
     throw new Error(
       `Failed to sign up test user via ${baseUrl}/api/auth/sign-up/email: ` +
-        `${response.status} ${response.statusText} ${bodyText}`,
+      `${response.status} ${response.statusText} ${bodyText}`,
     );
   }
 }
@@ -50,12 +50,19 @@ async function seed() {
       );
     }
 
+    const encryptionKey = process.env.CREDENTIALS_ENCRYPTION_KEY;
+    if (!encryptionKey) {
+      throw new Error(
+        'CREDENTIALS_ENCRYPTION_KEY is not set. Add it to apps/main/.env.local or your shell env.',
+      );
+    }
+
     try {
       const parsedUrl = new URL(databaseUrl);
       if (!parsedUrl.password) {
         throw new Error(
           'DATABASE_URL has no password segment. ' +
-            'Expected format: postgresql://user:password@host:port/db',
+          'Expected format: postgresql://user:password@host:port/db',
         );
       }
     } catch (error) {
@@ -79,15 +86,15 @@ async function seed() {
     if (testPassword) {
       const [passwordAccount] = testUser
         ? await db
-            .select()
-            .from(schema.account)
-            .where(
-              and(
-                eq(schema.account.userId, testUser.id),
-                isNotNull(schema.account.password),
-              ),
-            )
-            .limit(1)
+          .select()
+          .from(schema.account)
+          .where(
+            and(
+              eq(schema.account.userId, testUser.id),
+              isNotNull(schema.account.password),
+            ),
+          )
+          .limit(1)
         : [];
 
       if (!testUser || !passwordAccount) {
@@ -109,7 +116,7 @@ async function seed() {
           }
           console.warn(
             '⚠️ Failed to create test user via auth API. ' +
-              'Existing user will be used without a password.',
+            'Existing user will be used without a password.',
           );
         }
       }
@@ -132,9 +139,32 @@ async function seed() {
       throw new Error('Failed to get or create test user');
     }
 
-    // Delete existing agents
+    // Delete existing agents and custom skills
     await db.delete(schema.agents);
-    console.log('✅ Cleared existing agents');
+    await db.delete(schema.customSkills);
+    console.log('✅ Cleared existing agents and custom skills');
+
+    // Create test credential for Anthropic
+    const { encryptCredentials } = await import('@general-agent/encryption/credentials');
+
+    // Delete existing credentials for test user
+    await db.delete(schema.credentials).where(eq(schema.credentials.userId, testUser.id));
+
+    const testApiKey = process.env.ANTHROPIC_API_KEY;
+    const encryptedData = encryptCredentials({ apiKey: testApiKey });
+
+    const [credential] = await db.insert(schema.credentials).values({
+      userId: testUser.id,
+      name: 'Test LLM Credential',
+      type: 'llm_api_key',
+      data: encryptedData,
+    }).returning();
+
+    if (!credential) {
+      throw new Error('Failed to create test credential');
+    }
+
+    console.log('✅ Created test credential');
 
     // Insert test agent
     const [agent] = await db.insert(schema.agents).values({
@@ -143,8 +173,9 @@ async function seed() {
       config: {
         llm: {
           provider: 'anthropic',
-          model: 'claude-sonnet-4-5-20250929',
+          model: 'anthropic/claude-sonnet-4-5-20250929',
           systemPrompt: 'You are a helpful coding assistant.',
+          apiKeyCredentialId: credential.id,
         },
         tools: {
           "bash": true,

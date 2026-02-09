@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
     const defaultConfig = {
       llm: {
         provider: 'anthropic',
-        model: 'claude-sonnet-4-5-20250929',
+        model: 'anthropic/claude-sonnet-4-5-20250929',
         systemPrompt: '',
+        apiKeyCredentialId: '', // Required field - empty will show validation error in UI
       },
       tools: {},
       sandbox: {

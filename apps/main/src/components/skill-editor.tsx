@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { CodeEditor } from "@/components/code-editor";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FileText, Trash2, Plus, Save } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Plus, Save, Trash2 } from "lucide-react";
+import { FileTree } from "@/components/file-tree";
 
 interface SkillEditorProps {
 	skillName: string;
@@ -114,6 +114,23 @@ export function SkillEditor({ skillName }: SkillEditorProps) {
 		}
 	};
 
+	const getLanguageFromPath = (path: string): string => {
+		const ext = path.split(".").pop()?.toLowerCase();
+		const languageMap: Record<string, string> = {
+			md: "markdown",
+			py: "python",
+			js: "javascript",
+			ts: "typescript",
+			jsx: "javascript",
+			tsx: "typescript",
+			json: "json",
+			sh: "bash",
+			yml: "yaml",
+			yaml: "yaml",
+		};
+		return languageMap[ext || ""] || "text";
+	};
+
 	// Build file tree structure
 	const fileList = Object.keys(files).sort();
 
@@ -134,22 +151,11 @@ export function SkillEditor({ skillName }: SkillEditorProps) {
 				</div>
 
 				<ScrollArea className="flex-1">
-					<div className="p-2">
-						{fileList.map((path) => (
-							<button
-								key={path}
-								type="button"
-								onClick={() => handleFileSelect(path)}
-								className={cn(
-									"w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm hover:bg-accent",
-									selectedFile === path && "bg-accent",
-								)}
-							>
-								<FileText className="h-4 w-4" />
-								<span className="truncate">{path}</span>
-							</button>
-						))}
-					</div>
+					<FileTree
+						paths={fileList}
+						selectedPath={selectedFile}
+						onSelect={handleFileSelect}
+					/>
 				</ScrollArea>
 
 				{/* Add file input */}
@@ -196,10 +202,13 @@ export function SkillEditor({ skillName }: SkillEditorProps) {
 						</div>
 
 						{/* Content editor */}
-						<Textarea
+						<CodeEditor
 							value={files[selectedFile]}
-							onChange={(e) => handleFileChange(e.target.value)}
-							className="flex-1 resize-none rounded-none border-0 font-mono text-sm"
+							onChange={handleFileChange}
+							language={getLanguageFromPath(selectedFile)}
+							height="100%"
+							className="flex-1"
+							editorClassName="rounded-none border-0"
 							placeholder="Enter file content..."
 						/>
 					</>

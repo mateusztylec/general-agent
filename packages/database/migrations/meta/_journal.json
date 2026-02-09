@@ -43,6 +43,13 @@
       "when": 1770049128861,
       "tag": "0005_crazy_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770674897905,
+      "tag": "0006_spicy_toxin",
+      "breakpoints": true
     }
   ]
 }

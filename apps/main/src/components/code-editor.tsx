@@ -1,6 +1,17 @@
 "use client";
 
-import { useEffect, useRef, type KeyboardEvent } from "react";
+import { useMemo } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { EditorView } from "@codemirror/view";
+import { type Extension } from "@codemirror/state";
+import { StreamLanguage, indentUnit } from "@codemirror/language";
+import { githubDark } from "@uiw/codemirror-theme-github";
+import { javascript } from "@codemirror/lang-javascript";
+import { json } from "@codemirror/lang-json";
+import { markdown } from "@codemirror/lang-markdown";
+import { python } from "@codemirror/lang-python";
+import { yaml } from "@codemirror/lang-yaml";
+import { shell } from "@codemirror/legacy-modes/mode/shell";
 import { cn } from "@/lib/utils";
 
 interface CodeEditorProps {
@@ -9,9 +20,12 @@ interface CodeEditorProps {
 	language?: string;
 	placeholder?: string;
 	className?: string;
+	editorClassName?: string;
 	readOnly?: boolean;
+	height?: string;
 	minHeight?: string;
 	maxHeight?: string;
+	wrap?: boolean;
 }
 
 export function CodeEditor({
@@ -20,76 +34,85 @@ export function CodeEditor({
 	language = "text",
 	placeholder = "Enter text...",
 	className,
+	editorClassName,
 	readOnly = false,
+	height,
 	minHeight = "200px",
 	maxHeight = "none",
+	wrap = false,
 }: CodeEditorProps) {
-	const textareaRef = useRef<HTMLTextAreaElement>(null);
+	const languageExtension = useMemo<Extension | null>(() => {
+		switch (language) {
+			case "javascript":
+				return javascript({ jsx: true });
+			case "typescript":
+				return javascript({ typescript: true, jsx: true });
+			case "json":
+				return json();
+			case "python":
+				return python();
+			case "markdown":
+				return markdown();
+			case "yaml":
+				return yaml();
+			case "bash":
+			case "shell":
+			case "sh":
+				return StreamLanguage.define(shell);
+			default:
+				return null;
+		}
+	}, [language]);
 
-	// Handle tab key to insert spaces instead of losing focus
-	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-		if (e.key === "Tab") {
-			e.preventDefault();
-			const textarea = e.currentTarget;
-			const start = textarea.selectionStart;
-			const end = textarea.selectionEnd;
+	const extensions = useMemo<Extension[]>(() => {
+		const base: Extension[] = [
+			indentUnit.of("  "),
+			EditorView.theme(
+				{
+					"&": { fontSize: "0.875rem" },
+					".cm-scroller": {
+						fontFamily:
+							"var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+					},
+					".cm-content": { lineHeight: "1.6", padding: "0.75rem 0" },
+					".cm-gutters": { paddingRight: "0.5rem" },
+				},
+				{ dark: true },
+			),
+		];
 
-			// Insert 2 spaces for tab
-			const newValue =
-				value.substring(0, start) + "  " + value.substring(end);
-			onChange(newValue);
-
-			// Move cursor after inserted spaces
-			setTimeout(() => {
-				textarea.selectionStart = textarea.selectionEnd = start + 2;
-			}, 0);
+		if (wrap) {
+			base.push(EditorView.lineWrapping);
 		}
 
-		// Handle Cmd/Ctrl+S to prevent default browser save
-		if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-			e.preventDefault();
-			// The parent component should handle saving
+		if (languageExtension) {
+			base.push(languageExtension);
 		}
-	};
 
-	// Auto-resize textarea to fit content
-	useEffect(() => {
-		const textarea = textareaRef.current;
-		if (textarea) {
-			// Reset height to auto to get the correct scrollHeight
-			textarea.style.height = "auto";
-			// Set height to scrollHeight (content height)
-			const newHeight = Math.max(
-				textarea.scrollHeight,
-				Number.parseInt(minHeight),
-			);
-			textarea.style.height = `${newHeight}px`;
-		}
-	}, [value, minHeight]);
+		return base;
+	}, [languageExtension, wrap]);
 
 	return (
 		<div className={cn("relative", className)}>
-			<textarea
-				ref={textareaRef}
+			<CodeMirror
 				value={value}
-				onChange={(e) => onChange(e.target.value)}
-				onKeyDown={handleKeyDown}
+				onChange={(val) => onChange(val)}
 				placeholder={placeholder}
-				readOnly={readOnly}
-				spellCheck={false}
+				extensions={extensions}
+				theme={githubDark}
+				height={height}
+				minHeight={minHeight}
+				maxHeight={maxHeight}
+				indentWithTab
 				className={cn(
-					"w-full rounded-md border bg-background px-3 py-2 text-sm",
-					"font-mono resize-none overflow-auto",
-					"focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
-					"disabled:cursor-not-allowed disabled:opacity-50",
-					readOnly && "cursor-default",
+					"w-full rounded-md border bg-background",
+					"focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+					readOnly && "cursor-default opacity-80",
+					editorClassName,
 				)}
-				style={{
-					minHeight,
-					maxHeight,
-					lineHeight: "1.5",
-					tabSize: 2,
-				}}
+				basicSetup
+				editable={!readOnly}
+				readOnly={readOnly}
 			/>
 
 			{/* Language indicator */}

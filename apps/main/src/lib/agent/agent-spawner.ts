@@ -31,27 +31,57 @@ function createCredentialFetcher(userId: string): GetCredentialFn {
  * Spawns an agent OpenCode session (2-phase approach)
  * Phase 1: Create session and register in DB (frontend can start subscribing)
  * Phase 2: Execute task (events are streamed to frontend)
+ * Skills are now configured in agentConfig.skills (no separate parameter)
  */
 export async function spawnAgentRun(
   agentConfig: AgentConfig,
-  skillNames: string[],
   task: string,
   metadata: {
     userId: string;
     agentId: string;
   }
 ): Promise<{ toolCallId: string; sessionId: string }> {
+  // Fetch LLM credential from encrypted vault (REQUIRED - no fallback)
+  if (!agentConfig.llm.apiKeyCredentialId) {
+    throw new Error('LLM credential is required. Please configure a credential in the Config tab.');
+  }
+
+  console.log('[Agent Spawner] Fetching LLM credential...');
+  const credFetcher = createCredentialFetcher(metadata.userId);
+  const credential = await credFetcher(agentConfig.llm.apiKeyCredentialId);
+
+  // Build LLM environment variables from credential
+  const llmEnvVars: Record<string, string> = {};
+  const data = credential.data as { apiKey: string; organization?: string; projectId?: string };
+
+  // Set API key based on provider
+  if (agentConfig.llm.provider === 'openai') {
+    llmEnvVars.OPENAI_API_KEY = data.apiKey;
+    if (data.organization) {
+      llmEnvVars.OPENAI_ORGANIZATION = data.organization;
+    }
+  } else if (agentConfig.llm.provider === 'anthropic') {
+    llmEnvVars.ANTHROPIC_API_KEY = data.apiKey;
+  } else if (agentConfig.llm.provider === 'google') {
+    llmEnvVars.GOOGLE_API_KEY = data.apiKey;
+    if (data.projectId) {
+      llmEnvVars.GOOGLE_PROJECT_ID = data.projectId;
+    }
+  }
+
+  console.log(`[Agent Spawner] Using LLM credential for provider: ${agentConfig.llm.provider}`);
+
+  // AI Gateway still from server env (infrastructure-level)
+  if (serverEnv.VERCEL_AI_GATEWAY_API_KEY) {
+    llmEnvVars.AI_GATEWAY_API_KEY = serverEnv.VERCEL_AI_GATEWAY_API_KEY;
+  }
+
   // Phase 1: Create session (DON'T send prompt yet)
   console.log('[Agent Spawner] Phase 1: Creating session...');
   const session = await createAgentSession(
     agentConfig,
-    {
-      AI_GATEWAY_API_KEY: serverEnv.VERCEL_AI_GATEWAY_API_KEY,
-      OPENAI_API_KEY: serverEnv.OPENAI_API_KEY,
-      ANTHROPIC_API_KEY: serverEnv.ANTHROPIC_API_KEY,
-    },
-    createCredentialFetcher(metadata.userId),
-    skillNames
+    llmEnvVars,
+    credFetcher
   );
 
   const toolCallId = crypto.randomUUID();

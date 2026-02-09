@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { LLMCredentialSelector } from "@/components/llm-credential-selector";
 
 type ConfigTabProps = {
   config: AgentConfig;
@@ -71,7 +72,7 @@ export function ConfigTab({ config, onChange }: ConfigTabProps) {
                 llm: { ...config.llm, model: e.target.value },
               })
             }
-            placeholder="claude-sonnet-4-5-20250929"
+            placeholder="anthropic/claude-sonnet-4-5-20250929"
           />
         </div>
 
@@ -86,10 +87,26 @@ export function ConfigTab({ config, onChange }: ConfigTabProps) {
                 llm: { ...config.llm, small_model: e.target.value || undefined },
               })
             }
-            placeholder="claude-haiku-3-5-20241022"
+            placeholder="anthropic/claude-haiku-3-5-20241022"
           />
           <p className="text-xs text-muted-foreground">
             Faster model for simple operations
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="llm-credential">API Key Credential (Required)</Label>
+          <LLMCredentialSelector
+            credentialId={config.llm.apiKeyCredentialId}
+            onChange={(credentialId) =>
+              onChange({
+                ...config,
+                llm: { ...config.llm, apiKeyCredentialId: credentialId || "" },
+              })
+            }
+          />
+          <p className="text-xs text-muted-foreground">
+            API keys are stored encrypted in the credential vault
           </p>
         </div>
       </div>

@@ -100,8 +100,7 @@ export function decryptCredentials(
  * Credential type schema (Zod)
  */
 export const CredentialTypeSchema = z.enum([
-  "openai_api_key",
-  "anthropic_api_key",
+  "llm_api_key",
   "s3_credentials",
   "r2_credentials",
   "aws_credentials",

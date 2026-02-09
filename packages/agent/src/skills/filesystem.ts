@@ -1,7 +1,12 @@
 import { readdir, readFile, writeFile, mkdir, rm } from "node:fs/promises";
 import { join, dirname, relative } from "node:path";
 
-const SKILLS_DIR = process.env.SKILLS_DIR || "/app/data/skills";
+/**
+ * Directory for CUSTOM user-created skills only
+ * Pre-built skills (e.g., from anthropics/skills) are NOT stored here
+ * They are fetched via `npx skills add` during sandbox spawn
+ */
+const CUSTOM_CUSTOM_SKILLS_DIR = process.env.CUSTOM_SKILLS_DIR || "/app/data/skills";
 
 /**
  * Name validation pattern: lowercase alphanumeric with hyphens
@@ -27,7 +32,7 @@ export function validateSkillName(name: string): void {
  * Get the full path to a skill directory
  */
 export function getSkillPath(skillName: string): string {
-  return join(SKILLS_DIR, skillName);
+  return join(CUSTOM_SKILLS_DIR, skillName);
 }
 
 /**

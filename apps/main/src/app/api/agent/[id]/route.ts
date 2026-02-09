@@ -25,7 +25,7 @@ export async function PATCH(
 
     const { id } = await params;
     const body = await request.json();
-    const { config, name, skillIds } = body;
+    const { config, name } = body;
 
     // Validate config structure if provided
     if (config) {

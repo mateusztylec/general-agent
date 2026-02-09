@@ -1,10 +1,8 @@
 export type CredentialData = {
-  openai_api_key: {
+  llm_api_key: {
     apiKey: string;
-    organization?: string;
-  };
-  anthropic_api_key: {
-    apiKey: string;
+    organization?: string;  // For OpenAI
+    projectId?: string;     // For Google
   };
   s3_credentials: {
     endpoint: string;

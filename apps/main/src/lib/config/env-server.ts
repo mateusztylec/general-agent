@@ -9,13 +9,11 @@ export const serverEnv = createEnv({
    * Will throw if you access these variables on the client.
    */
   server: {
-    ANTHROPIC_API_KEY: z.string().min(1),
     DATABASE_URL: z.string().min(1),
     E2B_API_KEY: z.string().min(1),
     LANGFUSE_PUBLIC_KEY: z.string().optional(),
     LANGFUSE_SECRET_KEY: z.string().optional(),
     VERCEL_AI_GATEWAY_API_KEY: z.string().min(1),
-    OPENAI_API_KEY: z.string().min(1),
     BETTER_AUTH_SECRET: z.string().min(1),
     BETTER_AUTH_URL: z.string().min(1),
   },
@@ -28,12 +26,10 @@ export const serverEnv = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     E2B_API_KEY: process.env.E2B_API_KEY,
     LANGFUSE_PUBLIC_KEY: process.env.LANGFUSE_PUBLIC_KEY,
     LANGFUSE_SECRET_KEY: process.env.LANGFUSE_SECRET_KEY,
     VERCEL_AI_GATEWAY_API_KEY: process.env.VERCEL_AI_GATEWAY_API_KEY,
-    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
   },

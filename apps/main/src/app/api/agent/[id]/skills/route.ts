@@ -1,6 +1,8 @@
 import { NextRequest } from 'next/server';
 import { db } from '@general-agent/database/client';
-import { getSkillsForAgent, setSkillsForAgent } from '@general-agent/database/queries/skills';
+import { getSkillsByIds } from '@general-agent/database/queries/skills';
+import { getAgentById, updateAgent } from '@general-agent/database/queries/agents';
+import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 
@@ -24,7 +26,20 @@ export async function GET(
     }
 
     const { id } = await params;
-    const skills = await getSkillsForAgent(db, id);
+
+    // Get agent and verify ownership
+    const agent = await getAgentById(db, id);
+    if (!agent || agent.userId !== session.user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Agent not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Extract custom skill IDs from config
+    const config = parseAgentConfig(agent.config);
+    const customSkillIds = config.skills?.custom || [];
+    const skills = await getSkillsByIds(customSkillIds);
 
     return new Response(
       JSON.stringify({ skills }),
@@ -69,7 +84,30 @@ export async function PUT(
       );
     }
 
-    await setSkillsForAgent(db, id, skillIds);
+    // Get agent and verify ownership
+    const agent = await getAgentById(db, id);
+    if (!agent || agent.userId !== session.user.id) {
+      return new Response(
+        JSON.stringify({ error: 'Agent not found' }),
+        { status: 404, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Update config with new skill IDs
+    const config = parseAgentConfig(agent.config);
+    const updatedConfig = {
+      ...config,
+      skills: {
+        prebuilt: config.skills?.prebuilt || [],
+        custom: skillIds,
+      },
+    };
+
+    // Save updated config using query function
+    await updateAgent(db, {
+      id,
+      config: updatedConfig,
+    });
 
     return new Response(
       JSON.stringify({ success: true }),

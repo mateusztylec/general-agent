@@ -8,7 +8,8 @@
 	"exports": {
 		"./config-types": "./src/config-types.ts",
 		"./opencode-config": "./src/opencode-config.ts",
-		"./skills/filesystem": "./src/skills/filesystem.ts"
+		"./skills/filesystem": "./src/skills/filesystem.ts",
+		"./skills/prebuilt": "./src/skills/prebuilt.ts"
 	},
 	"devDependencies": {
 		"@general-agent/tsconfig": "workspace:*",

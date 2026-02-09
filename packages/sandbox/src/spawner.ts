@@ -7,7 +7,15 @@ import {
   type MountResult,
   mountAllStorage,
 } from "./storage";
-import { uploadSkillsToSandbox } from "./skills";
+import {
+  uploadCustomSkillsToSandbox,
+  installPrebuiltSkill,
+} from "./skills";
+import {
+  getPrebuiltSkill,
+  type PrebuiltSkill,
+} from "@general-agent/agent/skills/prebuilt";
+import { getSkillsByIds } from "@general-agent/database/queries/skills";
 
 type OpencodePart = { text?: string };
 type OpencodeMessageEntry = {
@@ -16,9 +24,10 @@ type OpencodeMessageEntry = {
 };
 
 export interface SandboxEnvVars {
-  AI_GATEWAY_API_KEY: string;
-  OPENAI_API_KEY: string;
-  ANTHROPIC_API_KEY: string;
+  AI_GATEWAY_API_KEY?: string;
+  OPENAI_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  OPENAI_ORGANIZATION?: string;
 }
 
 export type GetCredentialFn = (id: string) => Promise<DecryptedCredential>;
@@ -79,24 +88,25 @@ export async function createAgentSession(
   agentConfig: AgentConfig,
   envVars: SandboxEnvVars,
   getCredential: GetCredentialFn,
-  skillNames: string[] = [],
   templateAlias = "general-agent-opencode",
 ): Promise<AgentSession> {
   console.log("[Sandbox Spawner] Phase 1: Creating session...");
 
   // 1. Create E2B sandbox from custom template with OpenCode pre-installed
+  // Filter out undefined env vars
+  const filteredEnvs = Object.fromEntries(
+    Object.entries(envVars).filter(([, value]) => value !== undefined)
+  ) as Record<string, string>;
+
   const sandbox = await Sandbox.create(templateAlias, {
-    allowInternetAccess: agentConfig.sandbox?.internetAccess ?? false,
+    // TODO: implement
+    // allowInternetAccess: agentConfig.sandbox?.internetAccess ?? false,
     network: {
       allowPublicTraffic: false,
     },
     secure: true, // Requires e2b-traffic-access-token header
     timeoutMs: 5 * 60 * 1000, // 5 minutes
-    envs: {
-      AI_GATEWAY_API_KEY: envVars.AI_GATEWAY_API_KEY,
-      OPENAI_API_KEY: envVars.OPENAI_API_KEY,
-      ANTHROPIC_API_KEY: envVars.ANTHROPIC_API_KEY,
-    },
+    envs: filteredEnvs,
   });
 
   const accessToken = sandbox.trafficAccessToken;
@@ -133,9 +143,28 @@ EOF`,
       });
     }
 
-    // 3. Upload skills to sandbox
-    if (skillNames.length > 0) {
-      await uploadSkillsToSandbox(sandbox, skillNames);
+    // 3. Install pre-built skills and upload custom skills
+    const skills = agentConfig.skills || { prebuilt: [], custom: [] };
+
+    // 3a. Install pre-built skills via npx
+    if (skills.prebuilt && skills.prebuilt.length > 0) {
+      console.log(`[Sandbox Spawner] Installing ${skills.prebuilt.length} pre-built skill(s)...`);
+      for (const skillName of skills.prebuilt) {
+        const prebuiltSkill = getPrebuiltSkill(skillName);
+        if (!prebuiltSkill) {
+          console.warn(`[Sandbox Spawner] Unknown pre-built skill: ${skillName}, skipping`);
+          continue;
+        }
+        await installPrebuiltSkill(sandbox, prebuiltSkill);
+      }
+    }
+
+    // 3b. Upload custom user-created skills from local storage
+    if (skills.custom && skills.custom.length > 0) {
+      console.log(`[Sandbox Spawner] Uploading ${skills.custom.length} custom skill(s)...`);
+      const customSkills = await getSkillsByIds(skills.custom);
+      const customSkillNames = customSkills.map((s) => s.name);
+      await uploadCustomSkillsToSandbox(sandbox, customSkillNames);
     }
 
     // 4. Start OpenCode server in background

@@ -80,7 +80,7 @@ export const LLMConfigSchema = z.object({
 	provider: z.enum(["openai", "anthropic", "google"]),
 	model: z.string(),
 	systemPrompt: z.string(),
-	apiKeyCredentialId: z.string().optional(), // Reference to credentials table
+	apiKeyCredentialId: z.string(), // Reference to credentials table (required)
 	small_model: z.string().optional(), // For fast operations
 });
 
@@ -106,14 +106,20 @@ export const SandboxConfigSchema = z
 	})
 	.strict();
 
+// Skills configuration for agents
+export const SkillsConfigSchema = z.object({
+	prebuilt: z.array(z.string()).default([]), // Pre-built skill names (e.g., ['pdf', 'xlsx'])
+	custom: z.array(z.string()).default([]),   // Custom skill UUIDs
+});
+
 // Simplified AgentConfig - single OpenCode instance
-// Skills are managed via agent_skills junction table (not in config)
 export const AgentConfigSchema = z.object({
 	llm: LLMConfigSchema,
 	tools: OpencodeToolsMapSchema.optional(),
 	permission: OpencodePermissionMapSchema.optional(),
 	storage: z.array(StorageConfigSchema).optional(),
 	sandbox: SandboxConfigSchema.default({ internetAccess: false }),
+	skills: SkillsConfigSchema.optional(),
 });
 
 /**
@@ -194,6 +200,7 @@ export type LLMConfig = z.infer<typeof LLMConfigSchema>;
 export type StorageConfigDetails = z.infer<typeof StorageConfigDetailsSchema>;
 export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
+export type SkillsConfig = z.infer<typeof SkillsConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 export type ParsedAgentConfig = AgentConfig;
 

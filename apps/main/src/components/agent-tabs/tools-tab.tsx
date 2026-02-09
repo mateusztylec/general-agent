@@ -98,20 +98,25 @@ export function ToolsTab({ config, onChange }: ToolsTabProps) {
                         {tool.description}
                       </div>
                     </div>
-                    <button
-                      onClick={() => handleToggle(toolName)}
-                      className={cn(
-                        "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
-                        isEnabled ? "bg-primary" : "bg-muted"
-                      )}
-                    >
-                      <span
+                    <div className="flex items-center gap-3">
+                      <div className="px-2 py-0.5 text-[10px] font-medium text-muted-foreground bg-muted/50 rounded">
+                        Built-in
+                      </div>
+                      <button
+                        onClick={() => handleToggle(toolName)}
                         className={cn(
-                          "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
-                          isEnabled ? "translate-x-6" : "translate-x-1"
+                          "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                          isEnabled ? "bg-primary" : "bg-muted"
                         )}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={cn(
+                            "inline-block h-4 w-4 transform rounded-full bg-background transition-transform",
+                            isEnabled ? "translate-x-6" : "translate-x-1"
+                          )}
+                        />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

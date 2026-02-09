@@ -31,6 +31,7 @@ export function PromptTab({ config, onChange }: PromptTabProps) {
         placeholder="You are a helpful AI assistant..."
         minHeight="500px"
         language="markdown"
+        wrap
       />
     </div>
   );

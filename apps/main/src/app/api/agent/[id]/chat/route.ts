@@ -6,7 +6,6 @@ import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import { spawnAgentRun } from '@/lib/agent/agent-spawner';
-import { getSkillsForAgent } from '@general-agent/database/queries/skills';
 
 export async function POST(
   request: NextRequest,
@@ -55,12 +54,10 @@ export async function POST(
       );
     }
 
-    // Extract config
+    // Extract config (skills are already in config)
     const config = parseAgentConfig(agent.config);
-    const skills = await getSkillsForAgent(db, agentId);
-    const skillNames = skills.map((skill) => skill.name);
 
-    const run = await spawnAgentRun(config, skillNames, task, {
+    const run = await spawnAgentRun(config, task, {
       userId: session.user.id,
       agentId,
     });

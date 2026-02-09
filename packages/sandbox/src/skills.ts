@@ -3,12 +3,44 @@ import {
 	listSkillFiles,
 	readSkillFile,
 } from "@general-agent/agent/skills/filesystem";
+import type { PrebuiltSkill } from "@general-agent/agent/skills/prebuilt";
 
 /**
- * Upload skills to sandbox
- * Skills are loaded from local filesystem and uploaded to ~/.opencode/skills/{skill-name}/
+ * Install pre-built skill from external repository via npx
+ * Pre-built skills are fetched on-demand during sandbox spawn (no local storage)
  */
-export async function uploadSkillsToSandbox(
+export async function installPrebuiltSkill(
+	sandbox: Sandbox,
+	skill: PrebuiltSkill,
+): Promise<void> {
+	console.log(`[Skills] Installing pre-built skill: ${skill.name} from ${skill.source}`);
+
+	const cmd = `npx skills add ${skill.source} --skill ${skill.name} -a opencode -y`;
+
+	try {
+		const result = await sandbox.commands.run(cmd, {
+			onStdout: (data) => console.log(`[npx] ${data}`),
+			onStderr: (data) => console.error(`[npx] ${data}`),
+		});
+		const exitCode = result.exitCode;
+
+		if (exitCode !== 0) {
+			throw new Error(`npx skills add exited with code ${exitCode}`);
+		}
+
+		console.log(`[Skills] Successfully installed pre-built skill: ${skill.name}`);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		console.error(`[Skills] Failed to install pre-built skill ${skill.name}:`, errorMessage);
+		throw error;
+	}
+}
+
+/**
+ * Upload custom user-created skills to sandbox
+ * Custom skills are loaded from local filesystem and uploaded to ~/.opencode/skills/{skill-name}/
+ */
+export async function uploadCustomSkillsToSandbox(
 	sandbox: Sandbox,
 	skillNames: string[],
 ): Promise<void> {
@@ -53,5 +85,5 @@ export async function uploadSkillsToSandbox(
 		}
 	}
 
-	console.log("[Skills] Finished uploading skills");
+	console.log("[Skills] Finished uploading custom skills");
 }
