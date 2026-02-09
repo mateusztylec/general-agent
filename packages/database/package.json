@@ -14,7 +14,7 @@
         "./client": "./src/client.ts",
         "./queries/agents": "./src/queries/agents.ts",
         "./queries/credentials": "./src/queries/credentials.ts",
-        "./queries/opencode-sessions": "./src/queries/opencode-sessions.ts",
+        "./queries/chat-sessions": "./src/queries/chat-sessions.ts",
         "./queries/skills": "./src/queries/skills.ts"
     },
     "dependencies": {

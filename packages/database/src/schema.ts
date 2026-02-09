@@ -68,16 +68,16 @@ export const credentials = pgTable('credentials', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-// OpenCode sessions - temporary storage for streaming sandbox connections
-// Acts as a bridge between tool calls and frontend streaming endpoints
-export const opencodeSessions = pgTable('opencode_sessions', {
-  toolCallId: text('tool_call_id').primaryKey(),
+// Chat sessions - persistent bridge between one chat and one sandbox/OpenCode session
+export const chatSessions = pgTable('chat_sessions', {
+  id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   agentId: uuid('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
-  sessionId: text('session_id').notNull(), // OpenCode session ID for event filtering
-  url: text('url').notNull(), // E2B sandbox URL (e.g., https://xxx.e2b.dev)
-  token: text('token').notNull(), // E2B traffic access token
-  expiresAt: timestamp('expires_at').notNull(), // Auto-cleanup threshold
+  sandboxId: text('sandbox_id'), // E2B sandbox ID
+  opencodeSessionId: text('opencode_session_id'), // OpenCode session ID for event filtering
+  url: text('url'), // E2B sandbox URL (e.g., https://xxx.e2b.dev)
+  token: text('token'), // E2B traffic access token
+  status: text('status').notNull().default('closed'), // 'active' | 'closed'
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

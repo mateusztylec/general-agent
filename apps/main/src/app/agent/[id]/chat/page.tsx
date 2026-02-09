@@ -1,6 +1,4 @@
-import { ChatInterface } from "@/components/chat-interface";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { ChatBootstrapper } from '@/components/chat-bootstrapper';
 
 export default async function AgentChatPage({
   params,
@@ -8,25 +6,5 @@ export default async function AgentChatPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  return (
-    <main className="h-screen w-screen flex flex-col">
-      {/* Header */}
-      <div className="border-b px-4 py-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-semibold">Run Agent</h1>
-          <p className="text-sm text-muted-foreground">Agent ID: {id}</p>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={`/agent/${id}`}>
-            Edit Agent
-          </Link>
-        </Button>
-      </div>
-
-      {/* Chat Interface */}
-      <div className="flex-1 overflow-hidden">
-        <ChatInterface agentId={id} />
-      </div>
-    </main>
-  );
+  return <ChatBootstrapper agentId={id} />;
 }

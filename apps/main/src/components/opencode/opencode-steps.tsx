@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { OpencodePart, OpencodePayload, ParsedEvent } from '@/types/opencode';
 
 interface OpencodeStepsProps {
-  toolCallId: string;
+  chatId: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,12 +159,11 @@ function ToolStep({ step }: { step: ToolSummary }) {
   );
 }
 
-export function OpencodeSteps({ toolCallId }: OpencodeStepsProps) {
+export function OpencodeSteps({ chatId }: OpencodeStepsProps) {
   const [events, setEvents] = useState<ParsedEvent[]>([]);
 
   useEffect(() => {
-    const params = new URLSearchParams({ toolCallId });
-    const es = new EventSource(`/api/opencode/steps?${params.toString()}`);
+    const es = new EventSource(`/api/chat/${chatId}/steps`);
 
     es.onmessage = (e) => {
       setEvents((prev) => [...prev, parseEvent(e.data)]);
@@ -175,7 +174,7 @@ export function OpencodeSteps({ toolCallId }: OpencodeStepsProps) {
     };
 
     return () => es.close();
-  }, [toolCallId]);
+  }, [chatId]);
 
   const visibleEvents = useMemo(() => events.slice(-400), [events]);
 
