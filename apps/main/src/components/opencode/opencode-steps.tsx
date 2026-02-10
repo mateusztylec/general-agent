@@ -5,6 +5,8 @@ import type { OpencodePart, OpencodePayload, ParsedEvent } from '@/types/opencod
 
 interface OpencodeStepsProps {
   chatId: string;
+  onLatestResponseText?: (text: string) => void;
+  showDebug?: boolean;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -159,7 +161,11 @@ function ToolStep({ step }: { step: ToolSummary }) {
   );
 }
 
-export function OpencodeSteps({ chatId }: OpencodeStepsProps) {
+export function OpencodeSteps({
+  chatId,
+  onLatestResponseText,
+  showDebug = false,
+}: OpencodeStepsProps) {
   const [events, setEvents] = useState<ParsedEvent[]>([]);
 
   useEffect(() => {
@@ -178,7 +184,7 @@ export function OpencodeSteps({ chatId }: OpencodeStepsProps) {
 
   const visibleEvents = useMemo(() => events.slice(-400), [events]);
 
-  const { toolSteps, otherParts, rawEvents, responseText } = useMemo(() => {
+  const { toolSteps, otherParts, rawEvents, responseText, latestResponseText } = useMemo(() => {
     const order: string[] = [];
     const map = new Map<string, ToolSummary>();
     const fallbackParts: OpencodePart[] = [];
@@ -231,8 +237,19 @@ export function OpencodeSteps({ chatId }: OpencodeStepsProps) {
       otherParts: fallbackParts,
       rawEvents: leftovers,
       responseText: textOrder.map((id) => textMap.get(id) ?? '').join(''),
+      latestResponseText: textOrder.length > 0 ? (textMap.get(textOrder[textOrder.length - 1]) ?? '') : '',
     };
   }, [visibleEvents]);
+
+  useEffect(() => {
+    if (!onLatestResponseText) return;
+    if (!latestResponseText) return;
+    onLatestResponseText(latestResponseText);
+  }, [latestResponseText, onLatestResponseText]);
+
+  if (!showDebug) {
+    return null;
+  }
 
   if (visibleEvents.length === 0) {
     return (

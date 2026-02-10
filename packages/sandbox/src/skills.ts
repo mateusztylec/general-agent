@@ -38,7 +38,7 @@ export async function installPrebuiltSkill(
 
 /**
  * Upload custom user-created skills to sandbox
- * Custom skills are loaded from local filesystem and uploaded to ~/.opencode/skills/{skill-name}/
+ * Custom skills are loaded from local filesystem and uploaded to ~/.agents/skills/{skill-name}/
  */
 export async function uploadCustomSkillsToSandbox(
 	sandbox: Sandbox,
@@ -66,7 +66,7 @@ export async function uploadCustomSkillsToSandbox(
 			// Upload each file to sandbox
 			for (const filepath of filePaths) {
 				const content = await readSkillFile(skillName, filepath);
-				const sandboxPath = `/home/user/.opencode/skills/${skillName}/${filepath}`;
+				const sandboxPath = `/home/user/.agents/skills/${skillName}/${filepath}`;
 
 				await sandbox.files.write(sandboxPath, content);
 			}

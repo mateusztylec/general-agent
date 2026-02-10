@@ -5,8 +5,8 @@ import { Template } from "e2b";
  */
 export const opencodeTemplate = Template()
 	.fromImage("node:22")
-	.runCmd("npm install -g opencode-ai@v1.1.48", { user: "root" })
-	.runCmd("mkdir -p /home/user/.opencode/skills")
+	.runCmd("npm install -g opencode-ai@v1.1.56", { user: "root" })
+	.runCmd("mkdir -p /home/user/.agents/skills")
 	.aptInstall(["s3fs"]);
 
 export const TEMPLATE_ALIAS = "general-agent-opencode";

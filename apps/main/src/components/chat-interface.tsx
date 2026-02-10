@@ -9,9 +9,15 @@ interface ChatInterfaceProps {
   chatId: string;
 }
 
+type ChatTurn = {
+  id: string;
+  user: string;
+  assistant: string;
+};
+
 export function ChatInterface({ chatId }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<string[]>([]);
+  const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [chatStatus, setChatStatus] = useState<'active' | 'closed'>('closed');
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
@@ -80,7 +86,14 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
         throw new Error(data?.error || 'Failed to send message');
       }
 
-      setMessages((prev) => [task, ...prev]);
+      setTurns((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          user: task,
+          assistant: '',
+        },
+      ]);
       setInput('');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -91,6 +104,19 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAssistantText = (text: string) => {
+    setTurns((prev) => {
+      if (prev.length === 0) return prev;
+      const next = [...prev];
+      const last = next[next.length - 1];
+      next[next.length - 1] = {
+        ...last,
+        assistant: text,
+      };
+      return next;
+    });
   };
 
   return (
@@ -121,23 +147,35 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-6">
-          {messages.length === 0 && (
+        <div className="space-y-4">
+          {turns.length === 0 && (
             <div className="text-center text-muted-foreground py-8">
               Start sandbox and send your first message
             </div>
           )}
 
-          {messages.map((message, index) => (
-            <div key={`${message}-${index}`} className="rounded-lg border bg-muted/40 p-4 space-y-3">
-              <div className="text-xs uppercase text-muted-foreground tracking-wide">
-                Message {messages.length - index}
+          {turns.map((turn) => (
+            <div key={turn.id} className="space-y-2">
+              <div className="flex justify-end">
+                <div className="max-w-[80%] rounded-2xl rounded-br-md bg-primary px-4 py-2 text-sm text-primary-foreground whitespace-pre-wrap">
+                  {turn.user}
+                </div>
               </div>
-              <div className="text-sm whitespace-pre-wrap">{message}</div>
+              <div className="flex justify-start">
+                <div className="max-w-[80%] rounded-2xl rounded-bl-md border bg-muted/50 px-4 py-2 text-sm whitespace-pre-wrap">
+                  {turn.assistant || '...'}
+                </div>
+              </div>
             </div>
           ))}
 
-          {chatStatus === 'active' && <OpencodeSteps chatId={chatId} />}
+          {chatStatus === 'active' && (
+            <OpencodeSteps
+              chatId={chatId}
+              onLatestResponseText={handleAssistantText}
+              showDebug={true}
+            />
+          )}
         </div>
       </div>
 
