@@ -4,8 +4,9 @@ import type { AgentConfig, StorageConfig } from "@general-agent/agent/config-typ
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Trash2 } from "lucide-react";
-import { AddStorageDialog } from "@/components/add-storage-dialog";
+import { Trash2, Pencil } from "lucide-react";
+import { AddStorageDialog, EditStorageDialog } from "@/components/add-storage-dialog";
+import { useState } from "react";
 
 type SandboxTabProps = {
   config: AgentConfig;
@@ -13,11 +14,21 @@ type SandboxTabProps = {
 };
 
 export function SandboxTab({ config, onChange }: SandboxTabProps) {
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+
   const handleAddStorage = (storage: StorageConfig) => {
     const currentStorage = config.storage || [];
     onChange({
       ...config,
       storage: [...currentStorage, storage],
+    });
+  };
+
+  const handleEditStorage = (index: number, storage: StorageConfig) => {
+    const currentStorage = config.storage || [];
+    onChange({
+      ...config,
+      storage: currentStorage.map((s, i) => (i === index ? storage : s)),
     });
   };
 
@@ -28,6 +39,8 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
       storage: currentStorage.filter((_, i) => i !== index),
     });
   };
+
+  const editingStorage = editIndex !== null ? (config.storage ?? [])[editIndex] : null;
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -102,13 +115,22 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
                     Access: {storage.config?.accessMode || "readonly"}
                   </div>
                 </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveStorage(index)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditIndex(index)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleRemoveStorage(index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
               </div>
             ))}
           </div>
@@ -118,6 +140,18 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
           </div>
         )}
       </div>
+
+      {editingStorage && (
+        <EditStorageDialog
+          open={editIndex !== null}
+          onOpenChange={(open) => { if (!open) setEditIndex(null); }}
+          initialValues={editingStorage}
+          onEdit={(storage) => {
+            if (editIndex !== null) handleEditStorage(editIndex, storage);
+            setEditIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }

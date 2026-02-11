@@ -11,7 +11,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Key, Loader2 } from "lucide-react";
+import { Key, Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 type CredentialType = "s3_credentials" | "r2_credentials";
 
@@ -29,6 +29,8 @@ type CredentialData = {
   secretAccessKey: string;
 };
 
+type TestStatus = "idle" | "loading" | "success" | "error";
+
 export function CredentialDialog({
   isOpen,
   onClose,
@@ -40,8 +42,11 @@ export function CredentialDialog({
   const [endpoint, setEndpoint] = useState("");
   const [accessKeyId, setAccessKeyId] = useState("");
   const [secretAccessKey, setSecretAccessKey] = useState("");
+  const [bucketName, setBucketName] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(false);
+  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const [testError, setTestError] = useState("");
 
   const credentialType: CredentialType = storageType === "s3" ? "s3_credentials" : "r2_credentials";
 
@@ -69,6 +74,9 @@ export function CredentialDialog({
       setEndpoint("");
       setAccessKeyId("");
       setSecretAccessKey("");
+      setBucketName("");
+      setTestStatus("idle");
+      setTestError("");
     }
   }, [isOpen, existingCredentialId]);
 
@@ -141,6 +149,49 @@ export function CredentialDialog({
     }
   };
 
+  const handleTest = async () => {
+    setTestStatus("loading");
+    setTestError("");
+
+    try {
+      let response: Response;
+
+      if (existingCredentialId) {
+        response = await fetch(`/api/credential/${existingCredentialId}/test`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ bucketName }),
+        });
+      } else {
+        response = await fetch("/api/credential/test", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: credentialType,
+            data: { endpoint, accessKeyId, secretAccessKey },
+            bucketName,
+          }),
+        });
+      }
+
+      const result = await response.json();
+
+      if (result.success) {
+        setTestStatus("success");
+      } else {
+        setTestStatus("error");
+        setTestError(result.error || "Connection failed");
+      }
+    } catch (error) {
+      setTestStatus("error");
+      setTestError(error instanceof Error ? error.message : "Connection failed");
+    }
+  };
+
+  const canTest = existingCredentialId
+    ? bucketName.length > 0
+    : endpoint.length > 0 && accessKeyId.length > 0 && secretAccessKey.length > 0 && bucketName.length > 0;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
@@ -209,10 +260,45 @@ export function CredentialDialog({
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="credential-bucket-name">
+                Bucket Name <span className="text-muted-foreground text-xs">(for connection test)</span>
+              </Label>
+              <Input
+                id="credential-bucket-name"
+                value={bucketName}
+                onChange={(e) => {
+                  setBucketName(e.target.value);
+                  setTestStatus("idle");
+                }}
+                placeholder="my-bucket"
+              />
+            </div>
+
+            {testStatus === "success" && (
+              <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle2 className="h-4 w-4" />
+                Connection successful
+              </div>
+            )}
+            {testStatus === "error" && (
+              <div className="flex items-center gap-2 text-sm text-destructive">
+                <XCircle className="h-4 w-4" />
+                {testError}
+              </div>
+            )}
           </div>
         )}
 
         <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleTest}
+            disabled={!canTest || testStatus === "loading" || loadingExisting}
+          >
+            {testStatus === "loading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {testStatus === "loading" ? "Testing..." : "Test Connection"}
+          </Button>
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>

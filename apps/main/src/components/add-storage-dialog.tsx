@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import type { StorageConfig } from "@general-agent/agent/config-types";
 import { Button } from "@/components/ui/button";
@@ -28,42 +28,55 @@ type AddStorageDialogProps = {
   onAdd: (storage: StorageConfig) => void;
 };
 
+type EditStorageDialogProps = {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  initialValues: StorageConfig;
+  onEdit: (storage: StorageConfig) => void;
+};
+
 type Credential = {
   id: string;
   name: string;
   type: string;
 };
 
-export function AddStorageDialog({ onAdd }: AddStorageDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [credentials, setCredentials] = useState<Credential[]>([]);
-  const [loading, setLoading] = useState(false);
+type TestStatus = "idle" | "loading" | "success" | "error";
 
-  // Form state
-  const [type, setType] = useState<"s3" | "r2">("r2");
-  const [credentialId, setCredentialId] = useState("");
-  const [label, setLabel] = useState("");
-  const [description, setDescription] = useState("");
-  const [bucketName, setBucketName] = useState("");
-  const [mountPath, setMountPath] = useState("/mnt/storage");
-  const [accessMode, setAccessMode] = useState<"readonly" | "full">("readonly");
+function StorageDialogForm({
+  mode,
+  initialValues,
+  onSave,
+  onCancel,
+}: {
+  mode: "add" | "edit";
+  initialValues?: StorageConfig;
+  onSave: (storage: StorageConfig) => void;
+  onCancel: () => void;
+}) {
+  const [credentials, setCredentials] = useState<Credential[]>([]);
+
+  const [type, setType] = useState<"s3" | "r2">(initialValues?.type ?? "r2");
+  const [credentialId, setCredentialId] = useState(initialValues?.credentialId ?? "");
+  const [label, setLabel] = useState(initialValues?.config?.label ?? "");
+  const [description, setDescription] = useState(initialValues?.config?.description ?? "");
+  const [bucketName, setBucketName] = useState(initialValues?.config?.bucketName ?? "");
+  const [mountPath, setMountPath] = useState(initialValues?.config?.mountPath ?? "/mnt/storage");
+  const [accessMode, setAccessMode] = useState<"readonly" | "full">(
+    initialValues?.config?.accessMode ?? "readonly"
+  );
+
+  const [testStatus, setTestStatus] = useState<TestStatus>("idle");
+  const [testError, setTestError] = useState("");
 
   useEffect(() => {
-    if (open) {
-      // Load credentials when dialog opens
-      fetch("/api/credential")
-        .then((res) => res.json())
-        .then((data) => {
-          setCredentials(data.credentials || []);
-        })
-        .catch((error) => {
-          console.error("Failed to load credentials:", error);
-          toast.error("Failed to load credentials");
-        });
-    }
-  }, [open]);
+    fetch("/api/credential")
+      .then((res) => res.json())
+      .then((data) => setCredentials(data.credentials || []))
+      .catch(() => toast.error("Failed to load credentials"));
+  }, []);
 
-  const handleAdd = () => {
+  const handleSave = () => {
     if (!label.trim()) {
       toast.error("Label is required");
       return;
@@ -73,7 +86,7 @@ export function AddStorageDialog({ onAdd }: AddStorageDialogProps) {
       return;
     }
 
-    const storage: StorageConfig = {
+    onSave({
       type,
       credentialId: credentialId || undefined,
       config: {
@@ -83,22 +96,171 @@ export function AddStorageDialog({ onAdd }: AddStorageDialogProps) {
         mountPath: mountPath.trim(),
         accessMode,
       },
-    };
-
-    onAdd(storage);
-    setOpen(false);
-
-    // Reset form
-    setType("r2");
-    setCredentialId("");
-    setLabel("");
-    setDescription("");
-    setBucketName("");
-    setMountPath("/mnt/storage");
-    setAccessMode("readonly");
-
-    toast.success("Storage added");
+    });
   };
+
+  const handleTest = async () => {
+    if (!credentialId || !bucketName.trim()) return;
+    setTestStatus("loading");
+    setTestError("");
+
+    try {
+      const res = await fetch(`/api/credential/${credentialId}/test`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bucketName: bucketName.trim() }),
+      });
+      const result = await res.json();
+      if (result.success) {
+        setTestStatus("success");
+      } else {
+        setTestStatus("error");
+        setTestError(result.error || "Connection failed");
+      }
+    } catch (err) {
+      setTestStatus("error");
+      setTestError(err instanceof Error ? err.message : "Connection failed");
+    }
+  };
+
+  const canTest = !!credentialId && bucketName.trim().length > 0;
+
+  return (
+    <>
+      <div className="space-y-4 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="storage-type">Storage Type</Label>
+          <Select value={type} onValueChange={(v) => setType(v as "s3" | "r2")}>
+            <SelectTrigger id="storage-type">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="r2">Cloudflare R2</SelectItem>
+              <SelectItem value="s3">Amazon S3</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="credential">Credential (Optional)</Label>
+          {credentials.length > 0 ? (
+            <Select value={credentialId} onValueChange={(v) => { setCredentialId(v); setTestStatus("idle"); }}>
+              <SelectTrigger id="credential">
+                <SelectValue placeholder="Select credential (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {credentials.map((cred) => (
+                  <SelectItem key={cred.id} value={cred.id}>
+                    {cred.name} ({cred.type})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : (
+            <div className="text-sm text-muted-foreground p-2 border rounded">
+              No credentials available. Create one first.
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Select a credential to use for authentication
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="label">Label *</Label>
+          <Input
+            id="label"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="My Storage"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="description">Description</Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Storage for project files"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="bucket">Bucket Name *</Label>
+          <Input
+            id="bucket"
+            value={bucketName}
+            onChange={(e) => { setBucketName(e.target.value); setTestStatus("idle"); }}
+            placeholder="my-bucket"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="mount">Mount Path</Label>
+          <Input
+            id="mount"
+            value={mountPath}
+            onChange={(e) => setMountPath(e.target.value)}
+            placeholder="/mnt/storage"
+          />
+          <p className="text-xs text-muted-foreground">
+            Path where storage will be mounted in the sandbox
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="access-mode">Access Mode</Label>
+          <Select
+            value={accessMode}
+            onValueChange={(v) => setAccessMode(v as "readonly" | "full")}
+          >
+            <SelectTrigger id="access-mode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="readonly">Read Only</SelectItem>
+              <SelectItem value="full">Full Access</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {testStatus === "success" && (
+          <div className="flex items-center gap-2 text-sm text-green-600">
+            <CheckCircle2 className="h-4 w-4" />
+            Connection successful
+          </div>
+        )}
+        {testStatus === "error" && (
+          <div className="flex items-center gap-2 text-sm text-destructive">
+            <XCircle className="h-4 w-4" />
+            {testError}
+          </div>
+        )}
+      </div>
+
+      <DialogFooter>
+        <Button
+          variant="outline"
+          onClick={handleTest}
+          disabled={!canTest || testStatus === "loading"}
+        >
+          {testStatus === "loading" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {testStatus === "loading" ? "Testing..." : "Test Connection"}
+        </Button>
+        <Button variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button onClick={handleSave}>
+          {mode === "edit" ? "Save Changes" : "Add Storage"}
+        </Button>
+      </DialogFooter>
+    </>
+  );
+}
+
+export function AddStorageDialog({ onAdd }: AddStorageDialogProps) {
+  const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -115,119 +277,40 @@ export function AddStorageDialog({ onAdd }: AddStorageDialogProps) {
             Configure S3 or R2 storage to mount in the agent's sandbox
           </DialogDescription>
         </DialogHeader>
+        <StorageDialogForm
+          mode="add"
+          onSave={(storage) => {
+            onAdd(storage);
+            setOpen(false);
+            toast.success("Storage added");
+          }}
+          onCancel={() => setOpen(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-        <div className="space-y-4 py-4">
-          {/* Type */}
-          <div className="space-y-2">
-            <Label htmlFor="storage-type">Storage Type</Label>
-            <Select value={type} onValueChange={(v) => setType(v as "s3" | "r2")}>
-              <SelectTrigger id="storage-type">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="r2">Cloudflare R2</SelectItem>
-                <SelectItem value="s3">Amazon S3</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Credential */}
-          <div className="space-y-2">
-            <Label htmlFor="credential">Credential (Optional)</Label>
-            {credentials.length > 0 ? (
-              <Select value={credentialId} onValueChange={setCredentialId}>
-                <SelectTrigger id="credential">
-                  <SelectValue placeholder="Select credential (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {credentials.map((cred) => (
-                    <SelectItem key={cred.id} value={cred.id}>
-                      {cred.name} ({cred.type})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            ) : (
-              <div className="text-sm text-muted-foreground p-2 border rounded">
-                No credentials available. Create one first.
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              Select a credential to use for authentication
-            </p>
-          </div>
-
-          {/* Label */}
-          <div className="space-y-2">
-            <Label htmlFor="label">Label *</Label>
-            <Input
-              id="label"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder="My Storage"
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Input
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Storage for project files"
-            />
-          </div>
-
-          {/* Bucket Name */}
-          <div className="space-y-2">
-            <Label htmlFor="bucket">Bucket Name *</Label>
-            <Input
-              id="bucket"
-              value={bucketName}
-              onChange={(e) => setBucketName(e.target.value)}
-              placeholder="my-bucket"
-            />
-          </div>
-
-          {/* Mount Path */}
-          <div className="space-y-2">
-            <Label htmlFor="mount">Mount Path</Label>
-            <Input
-              id="mount"
-              value={mountPath}
-              onChange={(e) => setMountPath(e.target.value)}
-              placeholder="/mnt/storage"
-            />
-            <p className="text-xs text-muted-foreground">
-              Path where storage will be mounted in the sandbox
-            </p>
-          </div>
-
-          {/* Access Mode */}
-          <div className="space-y-2">
-            <Label htmlFor="access-mode">Access Mode</Label>
-            <Select
-              value={accessMode}
-              onValueChange={(v) => setAccessMode(v as "readonly" | "full")}
-            >
-              <SelectTrigger id="access-mode">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="readonly">Read Only</SelectItem>
-                <SelectItem value="full">Full Access</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleAdd}>Add Storage</Button>
-        </DialogFooter>
+export function EditStorageDialog({ open, onOpenChange, initialValues, onEdit }: EditStorageDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Edit Storage Configuration</DialogTitle>
+          <DialogDescription>
+            Update S3 or R2 storage configuration for this agent
+          </DialogDescription>
+        </DialogHeader>
+        <StorageDialogForm
+          mode="edit"
+          initialValues={initialValues}
+          onSave={(storage) => {
+            onEdit(storage);
+            onOpenChange(false);
+            toast.success("Storage updated");
+          }}
+          onCancel={() => onOpenChange(false)}
+        />
       </DialogContent>
     </Dialog>
   );

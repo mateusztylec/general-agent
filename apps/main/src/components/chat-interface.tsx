@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OpencodeSteps } from '@/components/opencode/opencode-steps';
@@ -15,6 +15,14 @@ type ChatTurn = {
   assistant: string;
 };
 
+function formatCountdown(remainingMs: number) {
+  const safeMs = Math.max(0, remainingMs);
+  const totalSeconds = Math.floor(safeMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 export function ChatInterface({ chatId }: ChatInterfaceProps) {
   const [input, setInput] = useState('');
   const [turns, setTurns] = useState<ChatTurn[]>([]);
@@ -22,7 +30,38 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isResettingTimeout, setIsResettingTimeout] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sandboxEndAt, setSandboxEndAt] = useState<string | null>(null);
+  const [timerNow, setTimerNow] = useState(() => Date.now());
+
+  const remainingMs = useMemo(() => {
+    if (!sandboxEndAt) return null;
+    return Math.max(0, new Date(sandboxEndAt).getTime() - timerNow);
+  }, [sandboxEndAt, timerNow]);
+
+  const countdownLabel = useMemo(() => {
+    if (remainingMs === null) return '--:--';
+    return formatCountdown(remainingMs);
+  }, [remainingMs]);
+
+  const fetchSandboxTimeout = async () => {
+    const response = await fetch(`/api/chat/${chatId}/timeout`, {
+      method: 'GET',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null);
+      throw new Error(data?.error || 'Failed to get sandbox timeout');
+    }
+
+    const data = (await response.json()) as { endAt?: string };
+    if (!data.endAt) {
+      throw new Error('Missing sandbox timeout info');
+    }
+
+    setSandboxEndAt(data.endAt);
+    setTimerNow(Date.now());
+  };
 
   const handleStart = async () => {
     setIsStarting(true);
@@ -37,6 +76,16 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
         throw new Error(data?.error || 'Failed to start sandbox');
       }
       setChatStatus('active');
+      try {
+        await fetchSandboxTimeout();
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        if (message.includes('Start sandbox')) {
+          setChatStatus('closed');
+          setSandboxEndAt(null);
+        }
+        setError(message);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
@@ -58,6 +107,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
         throw new Error(data?.error || 'Failed to close sandbox');
       }
       setChatStatus('closed');
+      setSandboxEndAt(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       setError(message);
@@ -99,12 +149,67 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       const message = err instanceof Error ? err.message : 'Unknown error';
       if (message.includes('Start sandbox')) {
         setChatStatus('closed');
+        setSandboxEndAt(null);
       }
       setError(message);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleResetTimeout = async () => {
+    setIsResettingTimeout(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/chat/${chatId}/timeout`, {
+        method: 'POST',
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        throw new Error(data?.error || 'Failed to reset sandbox timeout');
+      }
+
+      const data = (await response.json()) as { endAt?: string };
+      if (!data.endAt) {
+        throw new Error('Missing sandbox timeout info');
+      }
+
+      setSandboxEndAt(data.endAt);
+      setTimerNow(Date.now());
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('Start sandbox')) {
+        setChatStatus('closed');
+        setSandboxEndAt(null);
+      }
+      setError(message);
+    } finally {
+      setIsResettingTimeout(false);
+    }
+  };
+
+  useEffect(() => {
+    if (chatStatus !== 'active' || !sandboxEndAt) return;
+
+    setTimerNow(Date.now());
+    const intervalId = window.setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [chatStatus, sandboxEndAt]);
+
+  useEffect(() => {
+    if (chatStatus !== 'active') return;
+    if (remainingMs !== 0) return;
+
+    setChatStatus('closed');
+    setSandboxEndAt(null);
+    setError('Sandbox timed out. Start sandbox again.');
+  }, [chatStatus, remainingMs]);
 
   const handleAssistantText = (text: string) => {
     setTurns((prev) => {
@@ -126,6 +231,16 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
           Status: <span className="font-medium">{chatStatus}</span>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            onClick={handleResetTimeout}
+            disabled={chatStatus !== 'active' || isResettingTimeout}
+            variant="outline"
+            size="sm"
+            title="Reset sandbox timeout to 3:00"
+          >
+            {countdownLabel}
+          </Button>
           <Button
             type="button"
             onClick={handleStart}

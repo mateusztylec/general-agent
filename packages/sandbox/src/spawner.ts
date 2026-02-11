@@ -312,3 +312,23 @@ export async function killSandbox(sandboxId: string): Promise<void> {
   await sandbox.kill();
   console.log("[Sandbox Spawner] Sandbox killed");
 }
+
+/**
+ * Retrieve current sandbox lifecycle information.
+ */
+export async function getSandboxInfo(sandboxId: string) {
+  const sandbox = await Sandbox.connect(sandboxId);
+  return await sandbox.getInfo();
+}
+
+/**
+ * Reset sandbox timeout from now and return updated info.
+ */
+export async function setSandboxTimeout(
+  sandboxId: string,
+  timeoutMs: number,
+) {
+  const sandbox = await Sandbox.connect(sandboxId);
+  await sandbox.setTimeout(timeoutMs);
+  return await sandbox.getInfo();
+}

@@ -3,6 +3,9 @@ import { createOpencodeClient } from '@opencode-ai/sdk';
 import {
   createAgentSession,
   type GetCredentialFn,
+  getSandboxInfo,
+  killSandbox,
+  setSandboxTimeout,
 } from '@general-agent/sandbox/spawner';
 import { serverEnv } from '@/lib/config/env-server';
 import { db } from '@general-agent/database/client';
@@ -116,4 +119,14 @@ export async function sendAgentChatMessage(
 /**
  * Kill a running sandbox
  */
-export { killSandbox as killAgent } from '@general-agent/sandbox/spawner';
+export async function getAgentSandboxInfo(sandboxId: string) {
+  return await getSandboxInfo(sandboxId);
+}
+
+export async function resetAgentTimeout(sandboxId: string, timeoutMs: number) {
+  return await setSandboxTimeout(sandboxId, timeoutMs);
+}
+
+export async function killAgent(sandboxId: string) {
+  await killSandbox(sandboxId);
+}
