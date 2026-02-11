@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ChatInterface } from '@/components/chat-interface';
+import { ChatInterface } from '@/components/chat/chat-interface';
 
 export default async function AgentChatByIdPage({
   params,

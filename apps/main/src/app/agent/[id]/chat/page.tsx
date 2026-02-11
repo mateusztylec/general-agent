@@ -1,4 +1,4 @@
-import { ChatBootstrapper } from '@/components/chat-bootstrapper';
+import { ChatBootstrapper } from '@/components/chat/chat-bootstrapper';
 
 export default async function AgentChatPage({
   params,

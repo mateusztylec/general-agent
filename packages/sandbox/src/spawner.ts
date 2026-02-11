@@ -23,23 +23,23 @@ type OpencodeMessageEntry = {
   parts?: OpencodePart[];
 };
 
-export interface SandboxEnvVars {
+export type SandboxEnvVars = {
   AI_GATEWAY_API_KEY?: string;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
   OPENAI_ORGANIZATION?: string;
-}
+};
 
 export type GetCredentialFn = (id: string) => Promise<DecryptedCredential>;
 
-export interface SpawnAgentResult {
+export type SpawnAgentResult = {
   sandboxId: string;
   url: string;
   token: string;
   sessionId: string;
   output: string;
   mountResults?: MountResult[];
-}
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -70,7 +70,7 @@ async function waitForOpencodeReady(
   throw new Error("OpenCode server not ready (port not open)");
 }
 
-export interface AgentSession {
+export type AgentSession = {
   sandboxId: string;
   url: string;
   token: string;
@@ -78,7 +78,7 @@ export interface AgentSession {
   client: ReturnType<typeof createOpencodeClient>;
   cleanup: () => Promise<void>;
   mountResults: MountResult[];
-}
+};
 
 /**
  * Phase 1: Create sandbox and OpenCode session (before sending prompt)

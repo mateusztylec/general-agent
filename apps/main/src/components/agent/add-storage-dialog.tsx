@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { Plus, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import type { StorageConfig } from "@general-agent/agent/config-types";
+import type { TestStatus } from "@/types/ui";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -40,8 +41,6 @@ type Credential = {
   name: string;
   type: string;
 };
-
-type TestStatus = "idle" | "loading" | "success" | "error";
 
 function StorageDialogForm({
   mode,

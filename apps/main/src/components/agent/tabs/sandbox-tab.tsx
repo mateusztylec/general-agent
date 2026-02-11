@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Trash2, Pencil } from "lucide-react";
-import { AddStorageDialog, EditStorageDialog } from "@/components/add-storage-dialog";
+import { AddStorageDialog, EditStorageDialog } from "@/components/agent/add-storage-dialog";
 import { useState } from "react";
 
 type SandboxTabProps = {

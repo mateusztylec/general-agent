@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
 import { UserMenu } from "@/components/user-menu";
-import { CreateAgentDialog } from "@/components/create-agent-dialog";
+import { CreateAgentDialog } from "@/components/agent/create-agent-dialog";
 import { db } from "@general-agent/database/client";
 import { getAgentsByUserId } from "@general-agent/database/queries/agents";
 

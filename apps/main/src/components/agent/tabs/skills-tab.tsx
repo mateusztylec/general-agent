@@ -6,12 +6,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PREBUILT_SKILLS } from "@general-agent/agent/skills/prebuilt";
+import type { CustomSkill } from "@general-agent/database/schema";
 
-type Skill = {
-  id: string;
-  name: string;
-  description: string | null;
-};
+type Skill = Pick<CustomSkill, "id" | "name" | "description">;
 
 type SkillsTabProps = {
   selectedPrebuiltSkills: string[];

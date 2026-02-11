@@ -6,32 +6,24 @@ import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 import type { AgentConfig } from "@general-agent/agent/config-types";
+import type { CustomSkill } from "@general-agent/database/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ToolsTab } from "@/components/agent-tabs/tools-tab";
-import { SkillsTab } from "@/components/agent-tabs/skills-tab";
-import { PromptTab } from "@/components/agent-tabs/prompt-tab";
-import { ConfigTab } from "@/components/agent-tabs/config-tab";
-import { SandboxTab } from "@/components/agent-tabs/sandbox-tab";
+import { ToolsTab } from "@/components/agent/tabs/tools-tab";
+import { SkillsTab } from "@/components/agent/tabs/skills-tab";
+import { PromptTab } from "@/components/agent/tabs/prompt-tab";
+import { ConfigTab } from "@/components/agent/tabs/config-tab";
+import { SandboxTab } from "@/components/agent/tabs/sandbox-tab";
 import { cn } from "@/lib/utils";
 
 type Tab = "config" | "tools" | "skills" | "prompt" | "sandbox";
-
-type Skill = {
-  id: string;
-  userId: string;
-  name: string;
-  description: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
 
 type AgentEditorClientProps = {
   agentId: string;
   agentName: string;
   initialConfig: AgentConfig;
-  initialSkills: Skill[];
+  initialSkills: CustomSkill[];
 };
 
 export function AgentEditorClient({

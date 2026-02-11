@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { z } from "zod";
 import type { CredentialData } from "./types";
 
+export type { CredentialData } from "./types";
+
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
 const AUTH_TAG_LENGTH = 16;

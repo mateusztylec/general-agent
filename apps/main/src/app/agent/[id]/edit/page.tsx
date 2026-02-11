@@ -5,7 +5,7 @@ import { getAgentById } from "@general-agent/database/queries/agents";
 import { getSkillsByIds } from "@general-agent/database/queries/skills";
 import { auth } from "@/lib/auth";
 import { parseAgentConfig } from "@general-agent/agent/config-types";
-import { AgentEditorClient } from "@/components/agent-editor-client";
+import { AgentEditorClient } from "@/components/agent/agent-editor-client";
 
 export default async function AgentEditPage({
   params,

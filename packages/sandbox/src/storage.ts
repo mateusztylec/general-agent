@@ -1,7 +1,7 @@
 import type { StorageConfig } from "@general-agent/agent/config-types";
 import type { Sandbox } from "e2b";
 
-export interface StorageCredentials {
+export type StorageCredentials = {
   s3_credentials: {
     endpoint: string;
     accessKeyId: string;
@@ -12,28 +12,28 @@ export interface StorageCredentials {
     accessKeyId: string;
     secretAccessKey: string;
   };
-}
+};
 
 export type StorageCredentialType = keyof StorageCredentials;
 
-export interface DecryptedCredential {
+export type DecryptedCredential = {
   type: string;
   data: Record<string, unknown>;
-}
+};
 
-export interface MountResult {
+export type MountResult = {
   success: boolean;
   storageType: string;
   bucketName: string;
   mountPath: string;
   error?: string;
-}
+};
 
-export interface MountStorageOptions {
+export type MountStorageOptions = {
   sandbox: Sandbox;
   storageConfigs: StorageConfig[];
   getCredential: (id: string) => Promise<DecryptedCredential>;
-}
+};
 
 type SandboxCommandResult = Awaited<ReturnType<Sandbox["commands"]["run"]>>;
 
@@ -136,22 +136,7 @@ export async function mountAllStorage(
       // Fetch credential
       const credential = await getCredential(storageConfig.credentialId);
 
-      // Mount based on storage type
-      let result: MountResult;
-      if (storageConfig.type === "s3") {
-        result = await mountS3(sandbox, storageConfig, credential);
-      } else if (storageConfig.type === "r2") {
-        result = await mountR2(sandbox, storageConfig, credential);
-      } else {
-        console.warn("[Storage] Unsupported storage type:", storageConfig.type);
-        result = {
-          success: false,
-          storageType: storageConfig.type,
-          bucketName: storageConfig.config?.bucketName || "unknown",
-          mountPath: storageConfig.config?.mountPath || "unknown",
-          error: `Unsupported storage type: ${storageConfig.type}`,
-        };
-      }
+      const result = await mountBucketWithS3fs(sandbox, storageConfig, credential);
 
       results.push(result);
 
@@ -188,18 +173,21 @@ export async function mountAllStorage(
 }
 
 /**
- * Mount S3 bucket using s3fs
+ * Mount S3-compatible bucket (S3 or R2) using s3fs.
+ * R2 additionally requires the use_path_request_style flag.
  */
-async function mountS3(
+async function mountBucketWithS3fs(
   sandbox: Sandbox,
   storageConfig: StorageConfig,
   credential: DecryptedCredential,
 ): Promise<MountResult> {
+  const storageType = storageConfig.type;
   const config = storageConfig.config;
+
   if (!config) {
     return {
       success: false,
-      storageType: "s3",
+      storageType,
       bucketName: "unknown",
       mountPath: "unknown",
       error: "Missing storage config details",
@@ -212,25 +200,23 @@ async function mountS3(
   if (!credData.accessKeyId || !credData.secretAccessKey) {
     return {
       success: false,
-      storageType: "s3",
+      storageType,
       bucketName,
       mountPath,
-      error: "Missing S3 credentials (accessKeyId or secretAccessKey)",
+      error: `Missing ${storageType.toUpperCase()} credentials (accessKeyId or secretAccessKey)`,
     };
   }
 
   try {
-    // Determine mount path from config (absolute paths are kept as-is)
     const finalMountPath = resolveMountPath(bucketName, mountPath);
     const endpoint = normalizeEndpoint(credData.endpoint);
 
-    // Create mount directory
     try {
       await sandbox.commands.run(`sudo mkdir -p ${shellEscape(finalMountPath)}`);
     } catch (error) {
       return {
         success: false,
-        storageType: "s3",
+        storageType,
         bucketName,
         mountPath: finalMountPath,
         error: `Failed to create mount directory "${finalMountPath}": ${toDetailedErrorMessage(error)}`,
@@ -246,18 +232,19 @@ async function mountS3(
     } catch (error) {
       return {
         success: false,
-        storageType: "s3",
+        storageType,
         bucketName,
         mountPath: finalMountPath,
         error: `Failed to prepare credential file "${credFile}": ${toDetailedErrorMessage(error)}`,
       };
     }
 
-    // Build mount command
     const flags = [
       `-o url=https://${endpoint}`,
       `-o passwd_file=${shellEscape(credFile)}`,
       "-o allow_other",
+      // R2 requires path-style requests; S3 uses virtual-hosted style by default
+      ...(storageType === "r2" ? ["-o use_path_request_style"] : []),
       "-o dbglevel=debug",
     ];
 
@@ -266,9 +253,8 @@ async function mountS3(
     }
 
     const mountCmd = `sudo s3fs ${flags.join(" ")} ${shellEscape(bucketName)} ${shellEscape(finalMountPath)}`;
-    console.log(`[Storage] S3 mount command: ${mountCmd}`);
+    console.log(`[Storage] ${storageType.toUpperCase()} mount command: ${mountCmd}`);
 
-    // Check if s3fs is available
     try {
       const s3fsCheck = await sandbox.commands.run("which s3fs");
       console.log(
@@ -277,212 +263,44 @@ async function mountS3(
     } catch (error) {
       return {
         success: false,
-        storageType: "s3",
+        storageType,
         bucketName,
         mountPath: finalMountPath,
         error: `Failed to check s3fs binary: ${toDetailedErrorMessage(error)}`,
       };
     }
 
-    // Execute mount
     let mountResult: SandboxCommandResult;
     try {
       mountResult = await sandbox.commands.run(mountCmd);
     } catch (error) {
       return {
         success: false,
-        storageType: "s3",
+        storageType,
         bucketName,
         mountPath: finalMountPath,
         error: `Mount command threw before completion: ${toDetailedErrorMessage(error)}`,
       };
     }
-    console.log(`[Storage] S3 mount exit code: ${mountResult.exitCode}`);
-    console.log(
-      `[Storage] S3 mount stdout: ${mountResult.stdout || "(empty)"}`,
-    );
-    console.log(
-      `[Storage] S3 mount stderr: ${mountResult.stderr || "(empty)"}`,
-    );
+
+    console.log(`[Storage] ${storageType.toUpperCase()} mount exit code: ${mountResult.exitCode}`);
+    console.log(`[Storage] ${storageType.toUpperCase()} mount stdout: ${mountResult.stdout || "(empty)"}`);
+    console.log(`[Storage] ${storageType.toUpperCase()} mount stderr: ${mountResult.stderr || "(empty)"}`);
 
     if (mountResult.exitCode !== 0) {
       return {
         success: false,
-        storageType: "s3",
+        storageType,
         bucketName,
         mountPath: finalMountPath,
         error: `Mount command failed (exit ${mountResult.exitCode}): ${mountResult.stderr || mountResult.stdout || "no output"}`,
       };
     }
 
-    // Clean up credentials file (credentials are now cached in kernel)
     await sandbox.commands.run(`rm -f ${credFile}`);
 
-    return {
-      success: true,
-      storageType: "s3",
-      bucketName,
-      mountPath: finalMountPath,
-    };
+    return { success: true, storageType, bucketName, mountPath: finalMountPath };
   } catch (error) {
-    const errorMessage = toErrorMessage(error);
-    return {
-      success: false,
-      storageType: "s3",
-      bucketName,
-      mountPath,
-      error: errorMessage,
-    };
-  }
-}
-
-/**
- * Mount R2 bucket using s3fs with R2-specific endpoint
- */
-async function mountR2(
-  sandbox: Sandbox,
-  storageConfig: StorageConfig,
-  credential: DecryptedCredential,
-): Promise<MountResult> {
-  const config = storageConfig.config;
-  if (!config) {
-    return {
-      success: false,
-      storageType: "r2",
-      bucketName: "unknown",
-      mountPath: "unknown",
-      error: "Missing storage config details",
-    };
-  }
-
-  const { bucketName, mountPath, accessMode } = config;
-  const credData = credential.data as StorageCredentials["r2_credentials"];
-
-  if (!credData.accessKeyId || !credData.secretAccessKey) {
-    return {
-      success: false,
-      storageType: "r2",
-      bucketName,
-      mountPath,
-      error: "Missing R2 credentials (accessKeyId or secretAccessKey)",
-    };
-  }
-
-  try {
-    // Determine mount path from config (absolute paths are kept as-is)
-    const finalMountPath = resolveMountPath(bucketName, mountPath);
-    const endpoint = normalizeEndpoint(credData.endpoint);
-
-    // Create mount directory
-    try {
-      await sandbox.commands.run(`sudo mkdir -p ${shellEscape(finalMountPath)}`);
-    } catch (error) {
-      return {
-        success: false,
-        storageType: "r2",
-        bucketName,
-        mountPath: finalMountPath,
-        error: `Failed to create mount directory "${finalMountPath}": ${toDetailedErrorMessage(error)}`,
-      };
-    }
-
-    // Write credentials file without shell interpolation (safer for special characters)
-    const credFile = "/home/user/.passwd-s3fs";
-    const credContent = `${credData.accessKeyId}:${credData.secretAccessKey}`;
-    try {
-      await sandbox.files.write(credFile, credContent);
-      await sandbox.commands.run(`chmod 600 ${shellEscape(credFile)}`);
-    } catch (error) {
-      return {
-        success: false,
-        storageType: "r2",
-        bucketName,
-        mountPath: finalMountPath,
-        error: `Failed to prepare credential file "${credFile}": ${toDetailedErrorMessage(error)}`,
-      };
-    }
-
-    // Build mount command with R2 endpoint
-    // R2 endpoint format: https://<account-id>.r2.cloudflarestorage.com
-    const flags = [
-      `-o url=https://${endpoint}`,
-      `-o passwd_file=${shellEscape(credFile)}`,
-      "-o allow_other",
-      "-o use_path_request_style",
-      "-o dbglevel=debug",
-    ];
-
-    if (accessMode === "readonly") {
-      flags.push("-o ro");
-    }
-
-    const mountCmd = `sudo s3fs ${flags.join(" ")} ${shellEscape(bucketName)} ${shellEscape(finalMountPath)}`;
-    console.log(`[Storage] R2 mount command: ${mountCmd}`);
-
-    // Check if s3fs is available
-    try {
-      const s3fsCheck = await sandbox.commands.run("which s3fs");
-      console.log(
-        `[Storage] s3fs binary: ${s3fsCheck.stdout.trim() || "NOT FOUND"} (exit: ${s3fsCheck.exitCode})`,
-      );
-    } catch (error) {
-      return {
-        success: false,
-        storageType: "r2",
-        bucketName,
-        mountPath: finalMountPath,
-        error: `Failed to check s3fs binary: ${toDetailedErrorMessage(error)}`,
-      };
-    }
-
-    // Execute mount
-    let mountResult: SandboxCommandResult;
-    try {
-      mountResult = await sandbox.commands.run(mountCmd);
-    } catch (error) {
-      return {
-        success: false,
-        storageType: "r2",
-        bucketName,
-        mountPath: finalMountPath,
-        error: `Mount command threw before completion: ${toDetailedErrorMessage(error)}`,
-      };
-    }
-    console.log(`[Storage] R2 mount exit code: ${mountResult.exitCode}`);
-    console.log(
-      `[Storage] R2 mount stdout: ${mountResult.stdout || "(empty)"}`,
-    );
-    console.log(
-      `[Storage] R2 mount stderr: ${mountResult.stderr || "(empty)"}`,
-    );
-
-    if (mountResult.exitCode !== 0) {
-      return {
-        success: false,
-        storageType: "r2",
-        bucketName,
-        mountPath: finalMountPath,
-        error: `Mount command failed (exit ${mountResult.exitCode}): ${mountResult.stderr || mountResult.stdout || "no output"}`,
-      };
-    }
-
-    // Clean up credentials file
-    await sandbox.commands.run(`rm -f ${credFile}`);
-
-    return {
-      success: true,
-      storageType: "r2",
-      bucketName,
-      mountPath: finalMountPath,
-    };
-  } catch (error) {
-    const errorMessage = toErrorMessage(error);
-    return {
-      success: false,
-      storageType: "r2",
-      bucketName,
-      mountPath,
-      error: errorMessage,
-    };
+    return { success: false, storageType, bucketName, mountPath, error: toErrorMessage(error) };
   }
 }

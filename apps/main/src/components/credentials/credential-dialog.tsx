@@ -12,8 +12,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Key, Loader2, CheckCircle2, XCircle } from "lucide-react";
-
-type CredentialType = "s3_credentials" | "r2_credentials";
+import type { CredentialType, CredentialData } from "@general-agent/encryption/credentials";
+import type { TestStatus } from "@/types/ui";
 
 type CredentialDialogProps = {
   isOpen: boolean;
@@ -22,14 +22,6 @@ type CredentialDialogProps = {
   storageType: "s3" | "r2";
   existingCredentialId?: string;
 };
-
-type CredentialData = {
-  endpoint: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-};
-
-type TestStatus = "idle" | "loading" | "success" | "error";
 
 export function CredentialDialog({
   isOpen,
@@ -59,7 +51,7 @@ export function CredentialDialog({
         .then((data) => {
           if (data.credential) {
             setName(data.credential.name);
-            const credData = data.credential.data as CredentialData;
+            const credData = data.credential.data as CredentialData["s3_credentials"];
             setEndpoint(credData.endpoint || "");
             setAccessKeyId(credData.accessKeyId || "");
             // Secret is masked, don't set it

@@ -12,18 +12,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Key, Loader2 } from "lucide-react";
+import type { CredentialData } from "@general-agent/encryption/credentials";
 
 type LLMCredentialDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (credentialId: string) => void;
   existingCredentialId?: string;
-};
-
-type LLMCredentialData = {
-  apiKey: string;
-  organization?: string;  // For OpenAI
-  projectId?: string;     // For Google
 };
 
 export function LLMCredentialDialog({
@@ -48,7 +43,7 @@ export function LLMCredentialDialog({
         .then((data) => {
           if (data.credential) {
             setName(data.credential.name);
-            const credData = data.credential.data as LLMCredentialData;
+            const credData = data.credential.data as CredentialData["llm_api_key"];
             setOrganization(credData.organization || "");
             setProjectId(credData.projectId || "");
             // API key is masked, don't set it

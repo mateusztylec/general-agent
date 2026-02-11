@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { LLMCredentialSelector } from "@/components/llm-credential-selector";
+import { LLMCredentialSelector } from "@/components/credentials/llm-credential-selector";
 
 type ConfigTabProps = {
   config: AgentConfig;

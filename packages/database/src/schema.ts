@@ -93,3 +93,10 @@ export const customSkills = pgTable('custom_skills', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// Inferred row types for use throughout the app
+export type Agent = typeof agents.$inferSelect;
+export type Credential = typeof credentials.$inferSelect;
+export type CustomSkill = typeof customSkills.$inferSelect;
+export type ChatSession = typeof chatSessions.$inferSelect;
+export type User = typeof user.$inferSelect;

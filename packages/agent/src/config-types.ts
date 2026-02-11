@@ -202,8 +202,6 @@ export type StorageConfig = z.infer<typeof StorageConfigSchema>;
 export type SandboxConfig = z.infer<typeof SandboxConfigSchema>;
 export type SkillsConfig = z.infer<typeof SkillsConfigSchema>;
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
-export type ParsedAgentConfig = AgentConfig;
-
-export function parseAgentConfig(value: unknown): ParsedAgentConfig {
+export function parseAgentConfig(value: unknown): AgentConfig {
 	return AgentConfigSchema.parse(value);
 }

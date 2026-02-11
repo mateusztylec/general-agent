@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OpencodeSteps } from '@/components/opencode/opencode-steps';
 
-interface ChatInterfaceProps {
+type ChatInterfaceProps = {
   chatId: string;
-}
+};
 
 type ChatTurn = {
   id: string;

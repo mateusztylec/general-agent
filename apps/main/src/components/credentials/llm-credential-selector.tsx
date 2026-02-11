@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { LLMCredentialDialog } from "@/components/llm-credential-dialog";
+import { LLMCredentialDialog } from "@/components/credentials/llm-credential-dialog";
 import { Plus } from "lucide-react";
 
 type Credential = {
