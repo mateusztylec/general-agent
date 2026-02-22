@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import toast from "react-hot-toast";
+import { createAgentAction } from "@/app/agent/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -31,18 +32,7 @@ export function CreateAgentDialog() {
 
     setIsCreating(true);
     try {
-      const response = await fetch("/api/agent", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim() }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to create agent");
-      }
-
-      const data = await response.json();
+      const data = await createAgentAction(name.trim());
       toast.success("Agent created!");
       setOpen(false);
       setName("");

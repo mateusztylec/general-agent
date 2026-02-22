@@ -16,6 +16,7 @@ import { PromptTab } from "@/components/agent/tabs/prompt-tab";
 import { ConfigTab } from "@/components/agent/tabs/config-tab";
 import { SandboxTab } from "@/components/agent/tabs/sandbox-tab";
 import { cn } from "@/lib/utils";
+import { updateAgentAction } from "@/app/agent/[id]/actions";
 
 type Tab = "config" | "tools" | "skills" | "prompt" | "sandbox";
 
@@ -65,18 +66,7 @@ export function AgentEditorClient({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Save config and name (skills are now in config)
-      const configResponse = await fetch(`/api/agent/${agentId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ config, name: agentName }),
-      });
-
-      if (!configResponse.ok) {
-        const error = await configResponse.json();
-        throw new Error(error.error || "Failed to save config");
-      }
-
+      await updateAgentAction(agentId, { config, name: agentName });
       toast.success("Saved successfully");
       router.refresh();
     } catch (error) {

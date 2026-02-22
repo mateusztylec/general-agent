@@ -1,6 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import {
+  createCredentialAction,
+  updateCredentialAction,
+} from "@/lib/actions/credential";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,21 +61,10 @@ export function E2BCredentialDialog({
       let credentialId: string;
 
       if (existingCredentialId) {
-        const body: Record<string, unknown> = { name };
-        if (apiKey) {
-          body.data = { apiKey };
-        }
-
-        const response = await fetch(`/api/credential/${existingCredentialId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
+        await updateCredentialAction(existingCredentialId, {
+          name,
+          ...(apiKey && { data: { apiKey } }),
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to update credential");
-        }
-
         credentialId = existingCredentialId;
       } else {
         if (!apiKey) {
@@ -80,21 +73,11 @@ export function E2BCredentialDialog({
           return;
         }
 
-        const response = await fetch("/api/credential", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            type: "e2b_api_key",
-            data: { apiKey },
-          }),
+        const result = await createCredentialAction({
+          name,
+          type: "e2b_api_key",
+          data: { apiKey },
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to create credential");
-        }
-
-        const result = await response.json();
         credentialId = result.credential.id;
       }
 

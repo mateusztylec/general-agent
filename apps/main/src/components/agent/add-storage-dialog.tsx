@@ -24,6 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { testCredentialAction } from "@/lib/actions/credential";
 
 type AddStorageDialogProps = {
   onAdd: (storage: StorageConfig) => void;
@@ -104,12 +105,7 @@ function StorageDialogForm({
     setTestError("");
 
     try {
-      const res = await fetch(`/api/credential/${credentialId}/test`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bucketName: bucketName.trim() }),
-      });
-      const result = await res.json();
+      const result = await testCredentialAction(credentialId, bucketName.trim());
       if (result.success) {
         setTestStatus("success");
       } else {

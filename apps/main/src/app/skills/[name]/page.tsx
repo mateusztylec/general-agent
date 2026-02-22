@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { updateSkillAction } from "@/app/skills/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -127,14 +128,7 @@ export default function SkillEditorPage({ params }: SkillEditorPageProps) {
 	const handleSave = async () => {
 		try {
 			setIsSaving(true);
-			const response = await fetch(`/api/skill/${skillName}`, {
-				method: "PUT",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ files }),
-			});
-
-			if (!response.ok) throw new Error("Failed to save");
-
+			await updateSkillAction(skillName, { files });
 			setIsDirty(false);
 			toast.success("Saved successfully");
 		} catch (error) {

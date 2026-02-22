@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createChatAction } from '@/app/agent/[id]/chat/actions';
 
 interface ChatBootstrapperProps {
   agentId: string;
@@ -14,36 +15,20 @@ export function ChatBootstrapper({ agentId }: ChatBootstrapperProps) {
   useEffect(() => {
     let cancelled = false;
 
-    const createChat = async () => {
+    const run = async () => {
       try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ agentId }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json().catch(() => null);
-          throw new Error(data?.error || 'Failed to create chat');
-        }
-
-        const data = await response.json();
-        if (!data?.chatId) {
-          throw new Error('Missing chatId in response');
-        }
-
+        const data = await createChatAction(agentId);
+        if (!data?.chatId) throw new Error('Missing chatId in response');
         if (!cancelled) {
           router.replace(`/agent/${agentId}/chat/${data.chatId}`);
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : 'Unknown error';
-        if (!cancelled) {
-          setError(message);
-        }
+        if (!cancelled) setError(message);
       }
     };
 
-    void createChat();
+    void run();
     return () => {
       cancelled = true;
     };

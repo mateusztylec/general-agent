@@ -5,12 +5,7 @@ import {
   closeChatSession,
 } from '@general-agent/database/queries/chat-sessions';
 import { db } from '@general-agent/database/client';
-import {
-  getSandboxInfo,
-  setSandboxTimeout,
-} from '@general-agent/sandbox/spawner';
-
-const RESET_TIMEOUT_MS = 3 * 60 * 1000;
+import { getSandboxInfo } from '@general-agent/sandbox/spawner';
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -62,52 +57,6 @@ export async function GET(
     }
   } catch (error) {
     console.error('Get timeout API error:', error);
-    return jsonResponse({ error: 'Internal server error' }, 500);
-  }
-}
-
-export async function POST(
-  _request: Request,
-  { params }: { params: Promise<{ chatId: string }> }
-) {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return jsonResponse({ error: 'Unauthorized' }, 401);
-    }
-
-    const { chatId } = await params;
-    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
-    if (!chat) {
-      return jsonResponse({ error: 'Chat not found' }, 404);
-    }
-
-    if (chat.status !== 'active' || !chat.sandboxId) {
-      return jsonResponse(
-        { error: 'Sandbox is not active. Start sandbox first.' },
-        409
-      );
-    }
-
-    try {
-      const info = await setSandboxTimeout(chat.sandboxId, RESET_TIMEOUT_MS);
-      return jsonResponse({
-        timeoutMs: RESET_TIMEOUT_MS,
-        endAt: info.endAt,
-      });
-    } catch (error) {
-      console.error('Failed to reset sandbox timeout:', error);
-      await closeChatSession(db, chatId, session.user.id);
-      return jsonResponse(
-        { error: 'Sandbox session expired. Start sandbox again.' },
-        409
-      );
-    }
-  } catch (error) {
-    console.error('Reset timeout API error:', error);
     return jsonResponse({ error: 'Internal server error' }, 500);
   }
 }

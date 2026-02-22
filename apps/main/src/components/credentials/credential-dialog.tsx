@@ -14,6 +14,12 @@ import {
 import { Key, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import type { CredentialType, CredentialData } from "@general-agent/encryption/credentials";
 import type { TestStatus } from "@/types/ui";
+import {
+  createCredentialAction,
+  updateCredentialAction,
+  testCredentialAction,
+  testCredentialWithoutSaveAction,
+} from "@/lib/actions/credential";
 
 type CredentialDialogProps = {
   isOpen: boolean;
@@ -90,44 +96,23 @@ export function CredentialDialog({
       let credentialId: string;
 
       if (existingCredentialId) {
-        // Update existing credential
-        const response = await fetch(`/api/credential/${existingCredentialId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            data: credentialData,
-          }),
+        await updateCredentialAction(existingCredentialId, {
+          name,
+          data: credentialData,
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to update credential");
-        }
-
         credentialId = existingCredentialId;
       } else {
-        // Create new credential
         if (!secretAccessKey) {
           alert("Secret Access Key is required for new credentials");
           setLoading(false);
           return;
         }
 
-        const response = await fetch("/api/credential", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            type: credentialType,
-            data: credentialData,
-          }),
+        const result = await createCredentialAction({
+          name,
+          type: credentialType,
+          data: credentialData,
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to create credential");
-        }
-
-        const result = await response.json();
         credentialId = result.credential.id;
       }
 
@@ -146,27 +131,17 @@ export function CredentialDialog({
     setTestError("");
 
     try {
-      let response: Response;
+      let result: { success: boolean; error?: string };
 
       if (existingCredentialId) {
-        response = await fetch(`/api/credential/${existingCredentialId}/test`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ bucketName }),
-        });
+        result = await testCredentialAction(existingCredentialId, bucketName);
       } else {
-        response = await fetch("/api/credential/test", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: credentialType,
-            data: { endpoint, accessKeyId, secretAccessKey },
-            bucketName,
-          }),
+        result = await testCredentialWithoutSaveAction({
+          type: credentialType,
+          data: { endpoint, accessKeyId, secretAccessKey },
+          bucketName,
         });
       }
-
-      const result = await response.json();
 
       if (result.success) {
         setTestStatus("success");

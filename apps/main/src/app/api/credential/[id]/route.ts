@@ -1,20 +1,10 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
 import { db } from '@general-agent/database/client';
 import { credentials } from '@general-agent/database/schema';
 import { eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import {
-  encryptCredentials,
-  decryptCredentials,
-  CredentialTypeSchema,
-} from '@general-agent/encryption/credentials';
-
-const UpdateCredentialSchema = z.object({
-  name: z.string().min(1).optional(),
-  data: z.record(z.string(), z.unknown()).optional(),
-});
+import { decryptCredentials } from '@general-agent/encryption/credentials';
 
 /**
  * Mask secret fields in credential data
@@ -95,144 +85,6 @@ export async function GET(
     );
   } catch (error) {
     console.error('Failed to get credential:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-// PATCH /api/credential/[id] - Update credential
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { id } = await params;
-    const body = await request.json();
-    const parsed = UpdateCredentialSchema.parse(body);
-
-    // Check if credential exists and belongs to user
-    const [existing] = await db
-      .select()
-      .from(credentials)
-      .where(and(
-        eq(credentials.id, id),
-        eq(credentials.userId, session.user.id)
-      ));
-
-    if (!existing) {
-      return new Response(
-        JSON.stringify({ error: 'Credential not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Prepare update data
-    const updateData: { name?: string; data?: string } = {};
-
-    if (parsed.name) {
-      updateData.name = parsed.name;
-    }
-
-    if (parsed.data) {
-      // Decrypt existing data
-      const existingData = decryptCredentials(existing.data);
-
-      // Merge new data with existing (allows partial updates)
-      const mergedData = { ...existingData, ...parsed.data };
-
-      // Re-encrypt
-      updateData.data = encryptCredentials(mergedData);
-    }
-
-    // Update credential
-    const [updated] = await db
-      .update(credentials)
-      .set(updateData)
-      .where(and(
-        eq(credentials.id, id),
-        eq(credentials.userId, session.user.id)
-      ))
-      .returning({
-        id: credentials.id,
-        name: credentials.name,
-        type: credentials.type,
-        createdAt: credentials.createdAt,
-        updatedAt: credentials.updatedAt,
-      });
-
-    return new Response(
-      JSON.stringify({ credential: updated }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return new Response(
-        JSON.stringify({ error: 'Invalid request', details: error.issues }),
-        { status: 400, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.error('Failed to update credential:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-}
-
-// DELETE /api/credential/[id] - Delete credential
-export async function DELETE(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { id } = await params;
-
-    const result = await db
-      .delete(credentials)
-      .where(and(
-        eq(credentials.id, id),
-        eq(credentials.userId, session.user.id)
-      ))
-      .returning({ id: credentials.id });
-
-    if (result.length === 0) {
-      return new Response(
-        JSON.stringify({ error: 'Credential not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
-    }
-
-    return new Response(
-      JSON.stringify({ success: true }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  } catch (error) {
-    console.error('Failed to delete credential:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }

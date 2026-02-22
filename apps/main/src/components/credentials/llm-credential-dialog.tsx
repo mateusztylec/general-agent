@@ -13,6 +13,10 @@ import {
 } from "@/components/ui/dialog";
 import { Key, Loader2 } from "lucide-react";
 import type { CredentialData } from "@general-agent/encryption/credentials";
+import {
+  createCredentialAction,
+  updateCredentialAction,
+} from "@/lib/actions/credential";
 
 type LLMCredentialDialogProps = {
   isOpen: boolean;
@@ -83,44 +87,23 @@ export function LLMCredentialDialog({
       let credentialId: string;
 
       if (existingCredentialId) {
-        // Update existing credential
-        const response = await fetch(`/api/credential/${existingCredentialId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            data: credentialData,
-          }),
+        await updateCredentialAction(existingCredentialId, {
+          name,
+          data: credentialData,
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to update credential");
-        }
-
         credentialId = existingCredentialId;
       } else {
-        // Create new credential
         if (!apiKey) {
           alert("API Key is required for new credentials");
           setLoading(false);
           return;
         }
 
-        const response = await fetch("/api/credential", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name,
-            type: "llm_api_key",
-            data: credentialData,
-          }),
+        const result = await createCredentialAction({
+          name,
+          type: "llm_api_key",
+          data: credentialData,
         });
-
-        if (!response.ok) {
-          throw new Error("Failed to create credential");
-        }
-
-        const result = await response.json();
         credentialId = result.credential.id;
       }
 

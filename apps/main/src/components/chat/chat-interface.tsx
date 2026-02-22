@@ -5,6 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OpencodeSteps } from '@/components/opencode/opencode-steps';
 import { useOpencodeStream } from '@/hooks/use-opencode-stream';
+import {
+  startChatAction,
+  closeChatAction,
+  pauseChatAction,
+  resumeChatAction,
+  sendMessageAction,
+  resetChatTimeoutAction,
+} from '@/app/agent/[id]/chat/actions';
 
 type ChatInterfaceProps = {
   chatId: string;
@@ -74,13 +82,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/start`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to start sandbox');
-      }
+      await startChatAction(chatId);
       setChatStatus('active');
       try {
         await fetchSandboxTimeout();
@@ -105,13 +107,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/close`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to close sandbox');
-      }
+      await closeChatAction(chatId);
       setChatStatus('closed');
       setSandboxEndAt(null);
     } catch (err) {
@@ -127,11 +123,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/pause`, { method: 'POST' });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to pause sandbox');
-      }
+      await pauseChatAction(chatId);
       setChatStatus('paused');
       setSandboxEndAt(null);
     } catch (err) {
@@ -147,13 +139,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/resume`, { method: 'POST' });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        const message = data?.error || 'Failed to resume sandbox';
-        if (message.includes('closed')) setChatStatus('closed');
-        throw new Error(message);
-      }
+      await resumeChatAction(chatId);
       setChatStatus('active');
       try {
         await fetchSandboxTimeout();
@@ -162,6 +148,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
+      if (message.includes('closed')) setChatStatus('closed');
       setError(message);
     } finally {
       setIsResuming(false);
@@ -183,17 +170,7 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     reset();
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task }),
-      });
-
-      const data = await response.json().catch(() => null);
-
-      if (!response.ok) {
-        throw new Error(data?.error || 'Failed to send message');
-      }
+      const data = await sendMessageAction(chatId, task);
 
       setMessages((prev) => [
         ...prev,
@@ -216,20 +193,10 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/chat/${chatId}/timeout`, {
-        method: 'POST',
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => null);
-        throw new Error(data?.error || 'Failed to reset sandbox timeout');
-      }
+      const data = await resetChatTimeoutAction(chatId);
+      if (!data.endAt) throw new Error('Missing sandbox timeout info');
 
-      const data = (await response.json()) as { endAt?: string };
-      if (!data.endAt) {
-        throw new Error('Missing sandbox timeout info');
-      }
-
-      setSandboxEndAt(data.endAt);
+      setSandboxEndAt(String(data.endAt));
       setTimerNow(Date.now());
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
