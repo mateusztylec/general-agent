@@ -194,9 +194,7 @@ async function seed() {
           "question": true,
         },
         storage: [],
-        sandbox: {
-          internetAccess: false,
-        },
+        sandbox: {},
       },
     }).returning();
 

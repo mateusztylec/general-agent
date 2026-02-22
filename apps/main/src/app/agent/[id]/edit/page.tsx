@@ -40,7 +40,7 @@ export default async function AgentEditPage({
         apiKeyCredentialId: "", // Required field - empty will show validation error in UI
       },
       tools: {},
-      sandbox: { internetAccess: false },
+      sandbox: {},
     };
   }
 

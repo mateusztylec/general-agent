@@ -3,11 +3,7 @@ import { createOpencodeClient } from '@opencode-ai/sdk';
 import {
   createAgentSession,
   type GetCredentialFn,
-  getSandboxInfo,
-  killSandbox,
-  setSandboxTimeout,
 } from '@general-agent/sandbox/spawner';
-import { serverEnv } from '@/lib/config/env-server';
 import { db } from '@general-agent/database/client';
 import { getCredentialByIdAndUser } from '@general-agent/database/queries/credentials';
 import { decryptCredentials } from '@general-agent/encryption/credentials';
@@ -42,15 +38,6 @@ function buildLlmEnvVars(
     }
   } else if (agentConfig.llm.provider === 'anthropic') {
     llmEnvVars.ANTHROPIC_API_KEY = data.apiKey;
-  } else if (agentConfig.llm.provider === 'google') {
-    llmEnvVars.GOOGLE_API_KEY = data.apiKey;
-    if (data.projectId) {
-      llmEnvVars.GOOGLE_PROJECT_ID = data.projectId;
-    }
-  }
-
-  if (serverEnv.VERCEL_AI_GATEWAY_API_KEY) {
-    llmEnvVars.AI_GATEWAY_API_KEY = serverEnv.VERCEL_AI_GATEWAY_API_KEY;
   }
 
   return llmEnvVars;
@@ -69,10 +56,19 @@ export async function startAgentChatSession(
   const credential = await credFetcher(agentConfig.llm.apiKeyCredentialId);
   const data = credential.data as { apiKey: string; organization?: string; projectId?: string };
   const llmEnvVars = buildLlmEnvVars(agentConfig, data);
+
+  if (!agentConfig.sandbox?.e2bApiKeyCredentialId) {
+    throw new Error('E2B API key credential is required. Please configure it in the Sandbox tab.');
+  }
+  const e2bCredential = await credFetcher(agentConfig.sandbox.e2bApiKeyCredentialId);
+  const e2bApiKey = (e2bCredential.data as { apiKey: string }).apiKey;
+
   const session = await createAgentSession(
     agentConfig,
     llmEnvVars,
-    credFetcher
+    credFetcher,
+    undefined,
+    e2bApiKey,
   );
 
   return {
@@ -91,7 +87,7 @@ export async function sendAgentChatMessage(
     url: string;
     token: string;
   }
-) {
+): Promise<{ text: string }> {
   const client = createOpencodeClient({
     baseUrl: session.url,
     headers: {
@@ -114,19 +110,12 @@ export async function sendAgentChatMessage(
       `OpenCode prompt failed: ${JSON.stringify(messageResult.error)}`
     );
   }
-}
 
-/**
- * Kill a running sandbox
- */
-export async function getAgentSandboxInfo(sandboxId: string) {
-  return await getSandboxInfo(sandboxId);
-}
+  const parts = messageResult.data?.parts ?? [];
+  const text = parts
+    .filter((p) => p.type === 'text' && 'text' in p)
+    .map((p) => (p as { text: string }).text)
+    .join('');
 
-export async function resetAgentTimeout(sandboxId: string, timeoutMs: number) {
-  return await setSandboxTimeout(sandboxId, timeoutMs);
-}
-
-export async function killAgent(sandboxId: string) {
-  await killSandbox(sandboxId);
+  return { text };
 }

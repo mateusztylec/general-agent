@@ -1,10 +1,13 @@
 import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
+import {
+  activateChatSession,
+  getChatSessionByIdAndUser,
+} from '@general-agent/database/queries/chat-sessions';
 import { and, eq } from 'drizzle-orm';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { activateChatSession, getChatSession } from '@/lib/agent/chat-session-registry';
 import { startAgentChatSession } from '@/lib/agent/agent-spawner';
 
 export async function POST(
@@ -24,7 +27,7 @@ export async function POST(
     }
 
     const { chatId } = await params;
-    const chat = await getChatSession(chatId, session.user.id);
+    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
     if (!chat) {
       return new Response(
         JSON.stringify({ error: 'Chat not found' }),
@@ -62,7 +65,14 @@ export async function POST(
       userId: session.user.id,
     });
 
-    await activateChatSession(chatId, session.user.id, started);
+    await activateChatSession(db, {
+      chatId,
+      userId: session.user.id,
+      sandboxId: started.sandboxId,
+      opencodeSessionId: started.opencodeSessionId,
+      url: started.url,
+      token: started.token,
+    });
 
     return new Response(
       JSON.stringify({ status: 'active' }),

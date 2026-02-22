@@ -34,3 +34,14 @@ export type ParsedEvent = {
   part?: OpencodePart;
   delta?: string;
 };
+
+export type ToolSummary = {
+  callID: string;
+  tool: string;
+  status: string;
+  title: string;
+  subtitle?: string;
+  output?: unknown;
+  error?: string;
+  raw: OpencodePart;
+};

@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
+import { createChat } from '@general-agent/database/queries/chat-sessions';
 import { and, eq } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { createChat } from '@/lib/agent/chat-session-registry';
 
 export async function POST(request: NextRequest) {
   try {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const chat = await createChat(session.user.id, agentId);
+    const chat = await createChat(db, { userId: session.user.id, agentId });
     return new Response(
       JSON.stringify({ chatId: chat.id, status: chat.status }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

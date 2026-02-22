@@ -12,8 +12,7 @@ import {
   installPrebuiltSkill,
 } from "./skills";
 import {
-  getPrebuiltSkill,
-  type PrebuiltSkill,
+  getPrebuiltSkill
 } from "@general-agent/agent/skills/prebuilt";
 import { getSkillsByIds } from "@general-agent/database/queries/skills";
 
@@ -24,7 +23,6 @@ type OpencodeMessageEntry = {
 };
 
 export type SandboxEnvVars = {
-  AI_GATEWAY_API_KEY?: string;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
   OPENAI_ORGANIZATION?: string;
@@ -89,6 +87,7 @@ export async function createAgentSession(
   envVars: SandboxEnvVars,
   getCredential: GetCredentialFn,
   templateAlias = "general-agent-opencode",
+  e2bApiKey?: string,
 ): Promise<AgentSession> {
   console.log("[Sandbox Spawner] Phase 1: Creating session...");
 
@@ -99,14 +98,13 @@ export async function createAgentSession(
   ) as Record<string, string>;
 
   const sandbox = await Sandbox.create(templateAlias, {
-    // TODO: implement
-    // allowInternetAccess: agentConfig.sandbox?.internetAccess ?? false,
     network: {
       allowPublicTraffic: false,
     },
     secure: true, // Requires e2b-traffic-access-token header
     timeoutMs: 5 * 60 * 1000, // 5 minutes
     envs: filteredEnvs,
+    ...(e2bApiKey ? { apiKey: e2bApiKey } : {}),
   });
 
   const accessToken = sandbox.trafficAccessToken;
@@ -301,6 +299,39 @@ export async function executeAgentTask(
     await session.cleanup();
     throw error;
   }
+}
+
+/**
+ * Pause a running sandbox (preserves filesystem + memory state)
+ */
+export async function pauseSandbox(sandboxId: string): Promise<void> {
+  console.log("[Sandbox Spawner] Pausing sandbox:", sandboxId);
+  const sandbox = await Sandbox.connect(sandboxId);
+  await sandbox.betaPause();
+  console.log("[Sandbox Spawner] Sandbox paused");
+}
+
+/**
+ * Resume a paused sandbox and wait for OpenCode to be ready.
+ * Returns the (potentially updated) URL and token.
+ */
+export async function resumeSandbox(
+  sandboxId: string,
+): Promise<{ url: string; token: string }> {
+  console.log("[Sandbox Spawner] Resuming sandbox:", sandboxId);
+  const sandbox = await Sandbox.connect(sandboxId, {
+    timeoutMs: 5 * 60 * 1000,
+  });
+
+  const host = sandbox.getHost(4096);
+  const url = `https://${host}`;
+  const token = sandbox.trafficAccessToken ?? "";
+
+  console.log("[Sandbox Spawner] Sandbox resumed, waiting for OpenCode...");
+  await waitForOpencodeReady(url, token, { retries: 15, delayMs: 1000 });
+  console.log("[Sandbox Spawner] OpenCode ready after resume");
+
+  return { url, token };
 }
 
 /**

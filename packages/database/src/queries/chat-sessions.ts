@@ -1,6 +1,6 @@
 import type { Database } from '@database/client';
-import { chatSessions } from '@database/schema';
-import { and, eq } from 'drizzle-orm';
+import { agents, chatSessions } from '@database/schema';
+import { and, desc, eq } from 'drizzle-orm';
 
 export type ChatSessionData = {
   id: string;
@@ -24,6 +24,12 @@ export type ActivateChatSessionParams = {
   opencodeSessionId: string;
   url: string;
   token: string;
+};
+
+export type AgentWithSessions = {
+  id: string;
+  name: string;
+  sessions: Array<{ id: string; status: string; createdAt: Date }>;
 };
 
 export const createChat = async (
@@ -107,4 +113,84 @@ export const closeChatSession = async (
     });
 
   return session;
+};
+
+export const pauseChatSession = async (
+  db: Database,
+  chatId: string,
+  userId: string
+) => {
+  const [session] = await db
+    .update(chatSessions)
+    .set({
+      status: 'paused',
+    })
+    .where(and(eq(chatSessions.id, chatId), eq(chatSessions.userId, userId)))
+    .returning({
+      id: chatSessions.id,
+      status: chatSessions.status,
+    });
+
+  return session;
+};
+
+export const reactivateChatSession = async (
+  db: Database,
+  chatId: string,
+  userId: string,
+  data: { url: string; token: string }
+) => {
+  const [session] = await db
+    .update(chatSessions)
+    .set({
+      url: data.url,
+      token: data.token,
+      status: 'active',
+    })
+    .where(and(eq(chatSessions.id, chatId), eq(chatSessions.userId, userId)))
+    .returning({
+      id: chatSessions.id,
+      status: chatSessions.status,
+    });
+
+  return session;
+};
+
+
+
+export const getAgentsWithSessions = async (
+  db: Database,
+  userId: string
+): Promise<AgentWithSessions[]> => {
+  const userAgents = await db
+    .select({ id: agents.id, name: agents.name })
+    .from(agents)
+    .where(eq(agents.userId, userId))
+    .orderBy(agents.createdAt);
+
+  if (userAgents.length === 0) return [];
+
+  const sessions = await db
+    .select({
+      id: chatSessions.id,
+      agentId: chatSessions.agentId,
+      status: chatSessions.status,
+      createdAt: chatSessions.createdAt,
+    })
+    .from(chatSessions)
+    .where(eq(chatSessions.userId, userId))
+    .orderBy(desc(chatSessions.createdAt));
+
+  const sessionsByAgent = new Map<string, Array<{ id: string; status: string; createdAt: Date }>>();
+  for (const session of sessions) {
+    const list = sessionsByAgent.get(session.agentId) ?? [];
+    list.push({ id: session.id, status: session.status, createdAt: session.createdAt });
+    sessionsByAgent.set(session.agentId, list);
+  }
+
+  return userAgents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+    sessions: sessionsByAgent.get(agent.id) ?? [],
+  }));
 };

@@ -207,7 +207,6 @@ BETTER_AUTH_URL=http://localhost:3000
 OPENAI_API_KEY=        # For OpenAI models
 LANGFUSE_PUBLIC_KEY=   # For observability
 LANGFUSE_SECRET_KEY=
-VERCEL_AI_GATEWAY_API_KEY=  # For AI gateway
 ```
 
 ## Important Architectural Decisions

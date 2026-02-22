@@ -1,7 +1,11 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { closeChatSession, getChatSession } from '@/lib/agent/chat-session-registry';
-import { killAgent } from '@/lib/agent/agent-spawner';
+import {
+  closeChatSession,
+  getChatSessionByIdAndUser,
+} from '@general-agent/database/queries/chat-sessions';
+import { db } from '@general-agent/database/client';
+import { killSandbox } from '@general-agent/sandbox/spawner';
 
 export async function POST(
   _request: Request,
@@ -20,7 +24,7 @@ export async function POST(
     }
 
     const { chatId } = await params;
-    const chat = await getChatSession(chatId, session.user.id);
+    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
     if (!chat) {
       return new Response(
         JSON.stringify({ error: 'Chat not found' }),
@@ -30,13 +34,13 @@ export async function POST(
 
     if (chat.sandboxId) {
       try {
-        await killAgent(chat.sandboxId);
+        await killSandbox(chat.sandboxId);
       } catch (error) {
         console.error('Failed to kill sandbox:', error);
       }
     }
 
-    await closeChatSession(chatId, session.user.id);
+    await closeChatSession(db, chatId, session.user.id);
     return new Response(
       JSON.stringify({ status: 'closed' }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }

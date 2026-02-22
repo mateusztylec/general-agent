@@ -1,13 +1,14 @@
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
 import {
-  getChatSession,
+  getChatSessionByIdAndUser,
   closeChatSession,
-} from '@/lib/agent/chat-session-registry';
+} from '@general-agent/database/queries/chat-sessions';
+import { db } from '@general-agent/database/client';
 import {
-  getAgentSandboxInfo,
-  resetAgentTimeout,
-} from '@/lib/agent/agent-spawner';
+  getSandboxInfo,
+  setSandboxTimeout,
+} from '@general-agent/sandbox/spawner';
 
 const RESET_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -32,7 +33,7 @@ export async function GET(
     }
 
     const { chatId } = await params;
-    const chat = await getChatSession(chatId, session.user.id);
+    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
     if (!chat) {
       return jsonResponse({ error: 'Chat not found' }, 404);
     }
@@ -45,7 +46,7 @@ export async function GET(
     }
 
     try {
-      const info = await getAgentSandboxInfo(chat.sandboxId);
+      const info = await getSandboxInfo(chat.sandboxId);
       return jsonResponse({
         sandboxId: info.sandboxId,
         startedAt: info.startedAt,
@@ -53,7 +54,7 @@ export async function GET(
       });
     } catch (error) {
       console.error('Failed to fetch sandbox timeout info:', error);
-      await closeChatSession(chatId, session.user.id);
+      await closeChatSession(db, chatId, session.user.id);
       return jsonResponse(
         { error: 'Sandbox session expired. Start sandbox again.' },
         409
@@ -79,7 +80,7 @@ export async function POST(
     }
 
     const { chatId } = await params;
-    const chat = await getChatSession(chatId, session.user.id);
+    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
     if (!chat) {
       return jsonResponse({ error: 'Chat not found' }, 404);
     }
@@ -92,14 +93,14 @@ export async function POST(
     }
 
     try {
-      const info = await resetAgentTimeout(chat.sandboxId, RESET_TIMEOUT_MS);
+      const info = await setSandboxTimeout(chat.sandboxId, RESET_TIMEOUT_MS);
       return jsonResponse({
         timeoutMs: RESET_TIMEOUT_MS,
         endAt: info.endAt,
       });
     } catch (error) {
       console.error('Failed to reset sandbox timeout:', error);
-      await closeChatSession(chatId, session.user.id);
+      await closeChatSession(db, chatId, session.user.id);
       return jsonResponse(
         { error: 'Sandbox session expired. Start sandbox again.' },
         409

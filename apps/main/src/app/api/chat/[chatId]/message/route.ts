@@ -1,11 +1,18 @@
 import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
+import {
+  closeChatSession,
+  getChatSessionByIdAndUser,
+} from '@general-agent/database/queries/chat-sessions';
 import { and, eq } from 'drizzle-orm';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { closeChatSession, getChatSession } from '@/lib/agent/chat-session-registry';
 import { sendAgentChatMessage } from '@/lib/agent/agent-spawner';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+export const maxDuration = 300;
 
 export async function POST(
   request: Request,
@@ -33,7 +40,7 @@ export async function POST(
       );
     }
 
-    const chat = await getChatSession(chatId, session.user.id);
+    const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
     if (!chat) {
       return new Response(
         JSON.stringify({ error: 'Chat not found' }),
@@ -68,15 +75,16 @@ export async function POST(
 
     const config = parseAgentConfig(agent.config);
 
+    let result: { text: string };
     try {
-      await sendAgentChatMessage(config, task, {
+      result = await sendAgentChatMessage(config, task, {
         opencodeSessionId: chat.opencodeSessionId,
         url: chat.url,
         token: chat.token,
       });
     } catch (error) {
       console.error('Message send failed, closing chat session:', error);
-      await closeChatSession(chatId, session.user.id);
+      await closeChatSession(db, chatId, session.user.id);
       return new Response(
         JSON.stringify({ error: 'Sandbox session closed. Start sandbox again.' }),
         { status: 409, headers: { 'Content-Type': 'application/json' } }
@@ -84,7 +92,7 @@ export async function POST(
     }
 
     return new Response(
-      JSON.stringify({ ok: true }),
+      JSON.stringify({ ok: true, text: result.text }),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {

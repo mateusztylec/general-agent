@@ -4,6 +4,9 @@ export type CredentialData = {
     organization?: string;  // For OpenAI
     projectId?: string;     // For Google
   };
+  e2b_api_key: {
+    apiKey: string;
+  };
   s3_credentials: {
     endpoint: string;
     accessKeyId: string;

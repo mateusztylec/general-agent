@@ -2,7 +2,8 @@ import { createOpencodeClient } from '@opencode-ai/sdk';
 import { NextRequest } from 'next/server';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { getChatSession } from '@/lib/agent/chat-session-registry';
+import { getChatSessionByIdAndUser } from '@general-agent/database/queries/chat-sessions';
+import { db } from '@general-agent/database/client';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,7 +21,7 @@ export async function GET(
   }
 
   const { chatId } = await params;
-  const chat = await getChatSession(chatId, session.user.id);
+  const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
   if (!chat || !chat.url || !chat.token || !chat.opencodeSessionId) {
     return new Response('Chat session not ready', { status: 404 });
   }

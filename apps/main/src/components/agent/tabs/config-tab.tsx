@@ -18,9 +18,32 @@ type ConfigTabProps = {
   onChange: (config: AgentConfig) => void;
 };
 
-const LLM_PROVIDERS = ["openai", "anthropic", "google"] as const;
+const LLM_PROVIDERS = ["openai", "anthropic"] as const;
+
+function stripProviderPrefix(model: string, provider: string): string {
+  const prefix = `${provider}/`;
+  return model.startsWith(prefix) ? model.slice(prefix.length) : model;
+}
 
 export function ConfigTab({ config, onChange }: ConfigTabProps) {
+  const provider = config.llm.provider;
+  const modelName = stripProviderPrefix(config.llm.model, provider);
+  const smallModelName = config.llm.small_model
+    ? stripProviderPrefix(config.llm.small_model, provider)
+    : "";
+
+  const handleProviderChange = (newProvider: (typeof LLM_PROVIDERS)[number]) => {
+    onChange({
+      ...config,
+      llm: {
+        ...config.llm,
+        provider: newProvider,
+        model: modelName ? `${newProvider}/${modelName}` : "",
+        small_model: smallModelName ? `${newProvider}/${smallModelName}` : undefined,
+      },
+    });
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div>
@@ -36,25 +59,14 @@ export function ConfigTab({ config, onChange }: ConfigTabProps) {
 
         <div className="space-y-2">
           <Label htmlFor="provider">Provider</Label>
-          <Select
-            value={config.llm.provider}
-            onValueChange={(value) =>
-              onChange({
-                ...config,
-                llm: {
-                  ...config.llm,
-                  provider: value as (typeof LLM_PROVIDERS)[number],
-                },
-              })
-            }
-          >
+          <Select value={provider} onValueChange={handleProviderChange}>
             <SelectTrigger id="provider">
               <SelectValue placeholder="Select provider" />
             </SelectTrigger>
             <SelectContent>
-              {LLM_PROVIDERS.map((provider) => (
-                <SelectItem key={provider} value={provider}>
-                  {provider}
+              {LLM_PROVIDERS.map((p) => (
+                <SelectItem key={p} value={p}>
+                  {p}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -63,32 +75,49 @@ export function ConfigTab({ config, onChange }: ConfigTabProps) {
 
         <div className="space-y-2">
           <Label htmlFor="model">Model</Label>
-          <Input
-            id="model"
-            value={config.llm.model}
-            onChange={(e) =>
-              onChange({
-                ...config,
-                llm: { ...config.llm, model: e.target.value },
-              })
-            }
-            placeholder="anthropic/claude-sonnet-4-5-20250929"
-          />
+          <div className="flex items-center gap-0">
+            <span className="flex items-center h-9 rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground select-none whitespace-nowrap">
+              {provider}/
+            </span>
+            <Input
+              id="model"
+              value={modelName}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  llm: { ...config.llm, model: `${provider}/${e.target.value}` },
+                })
+              }
+              placeholder="claude-sonnet-4-5"
+              className="rounded-l-none"
+            />
+          </div>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="small-model">Small Model (Optional)</Label>
-          <Input
-            id="small-model"
-            value={config.llm.small_model || ""}
-            onChange={(e) =>
-              onChange({
-                ...config,
-                llm: { ...config.llm, small_model: e.target.value || undefined },
-              })
-            }
-            placeholder="anthropic/claude-haiku-3-5-20241022"
-          />
+          <div className="flex items-center gap-0">
+            <span className="flex items-center h-9 rounded-l-md border border-r-0 bg-muted px-3 text-sm text-muted-foreground select-none whitespace-nowrap">
+              {provider}/
+            </span>
+            <Input
+              id="small-model"
+              value={smallModelName}
+              onChange={(e) =>
+                onChange({
+                  ...config,
+                  llm: {
+                    ...config.llm,
+                    small_model: e.target.value
+                      ? `${provider}/${e.target.value}`
+                      : undefined,
+                  },
+                })
+              }
+              placeholder="claude-haiku-3-5"
+              className="rounded-l-none"
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
             Faster model for simple operations
           </p>

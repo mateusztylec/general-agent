@@ -103,6 +103,7 @@ export function decryptCredentials(
  */
 export const CredentialTypeSchema = z.enum([
   "llm_api_key",
+  "e2b_api_key",
   "s3_credentials",
   "r2_credentials",
   "aws_credentials",

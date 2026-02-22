@@ -39,9 +39,7 @@ export async function POST(request: NextRequest) {
         apiKeyCredentialId: '', // Required field - empty will show validation error in UI
       },
       tools: {},
-      sandbox: {
-        internetAccess: false,
-      },
+      sandbox: {},
     };
 
     const agent = await createAgent(db, {

@@ -31,7 +31,7 @@ function maskSecrets(type: string, data: Record<string, unknown>): Record<string
     if (masked.sessionToken) {
       masked.sessionToken = '••••••••••••••••';
     }
-  } else if (type === 'openai_api_key' || type === 'anthropic_api_key') {
+  } else if (type === 'llm_api_key' || type === 'e2b_api_key') {
     if (masked.apiKey) {
       masked.apiKey = '••••••••••••••••';
     }

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Trash2, Pencil } from "lucide-react";
 import { AddStorageDialog, EditStorageDialog } from "@/components/agent/add-storage-dialog";
+import { E2BCredentialSelector } from "@/components/credentials/e2b-credential-selector";
 import { useState } from "react";
 
 type SandboxTabProps = {
@@ -53,35 +54,31 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
 
       <Separator />
 
-      {/* Internet Access */}
+      {/* E2B API Key */}
       <div className="space-y-4">
-        <div className="flex items-start gap-3">
-          <input
-            type="checkbox"
-            id="internet-access"
-            checked={config.sandbox?.internetAccess || false}
-            onChange={(e) =>
+        <div>
+          <h3 className="text-lg font-semibold">E2B API Key</h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            API key used to create sandboxes.
+          </p>
+        </div>
+        <div className="space-y-2">
+          <Label>API Key Credential</Label>
+          <E2BCredentialSelector
+            credentialId={config.sandbox?.e2bApiKeyCredentialId}
+            onChange={(credentialId) =>
               onChange({
                 ...config,
                 sandbox: {
                   ...config.sandbox,
-                  internetAccess: e.target.checked,
+                  e2bApiKeyCredentialId: credentialId,
                 },
               })
             }
-            className="h-4 w-4 rounded border-border mt-1"
           />
-          <div className="flex-1">
-            <Label htmlFor="internet-access" className="cursor-pointer font-medium">
-              Internet Access
-            </Label>
-            <p className="text-sm text-muted-foreground mt-1">
-              Allow the agent to access external websites and APIs from its sandbox environment.
-              Useful for agents that need to fetch data, call APIs, or interact with web services.
-            </p>
-          </div>
         </div>
       </div>
+
 
       <Separator />
 

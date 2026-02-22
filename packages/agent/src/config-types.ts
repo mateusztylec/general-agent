@@ -77,7 +77,7 @@ export const OpencodeConfigCoreSchema = z.object({
 
 // LLM configuration with credential reference
 export const LLMConfigSchema = z.object({
-	provider: z.enum(["openai", "anthropic", "google"]),
+	provider: z.enum(["openai", "anthropic"]),
 	model: z.string(),
 	systemPrompt: z.string(),
 	apiKeyCredentialId: z.string(), // Reference to credentials table (required)
@@ -102,7 +102,7 @@ export const StorageConfigSchema = z.object({
 
 export const SandboxConfigSchema = z
 	.object({
-		internetAccess: z.boolean().default(false),
+		e2bApiKeyCredentialId: z.string().optional(),
 	})
 	.strict();
 
@@ -118,7 +118,7 @@ export const AgentConfigSchema = z.object({
 	tools: OpencodeToolsMapSchema.optional(),
 	permission: OpencodePermissionMapSchema.optional(),
 	storage: z.array(StorageConfigSchema).optional(),
-	sandbox: SandboxConfigSchema.default({ internetAccess: false }),
+	sandbox: SandboxConfigSchema.default({}),
 	skills: SkillsConfigSchema.optional(),
 });
 
