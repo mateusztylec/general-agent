@@ -13,6 +13,10 @@ export interface PrebuiltSkill {
  * List of pre-built skills from the Anthropic skills repository
  * Reference: https://github.com/anthropics/anthropic-skills
  */
+export function getPrebuiltSkill(name: string): PrebuiltSkill | undefined {
+  return PREBUILT_SKILLS.find((skill) => skill.name === name);
+}
+
 export const PREBUILT_SKILLS: PrebuiltSkill[] = [
   {
     name: "git",
