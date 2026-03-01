@@ -1,11 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { headers } from 'next/headers';
 import { db } from '@general-agent/database/client';
 import { credentials } from '@general-agent/database/schema';
 import { eq, and } from 'drizzle-orm';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import {
   encryptCredentials,
   decryptCredentials,
@@ -37,12 +36,6 @@ const TestWithoutSaveSchema = z.object({
   }),
   bucketName: z.string().min(1),
 });
-
-async function getSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error('Unauthorized');
-  return session;
-}
 
 async function testS3Connection(
   endpoint: string,

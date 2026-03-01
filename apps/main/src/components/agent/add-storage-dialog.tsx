@@ -24,7 +24,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { testCredentialAction } from "@/lib/actions/credential";
+import { testCredentialAction } from "@/actions/credential";
 
 type AddStorageDialogProps = {
   onAdd: (storage: StorageConfig) => void;

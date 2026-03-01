@@ -1,17 +1,10 @@
 'use server';
 
 import { z } from 'zod';
-import { headers } from 'next/headers';
 import { db } from '@general-agent/database/client';
 import { updateAgent } from '@general-agent/database/queries/agents';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
-
-async function getSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error('Unauthorized');
-  return session;
-}
 
 export async function updateAgentAction(
   id: string,

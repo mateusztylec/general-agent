@@ -16,7 +16,7 @@ import type { CredentialData } from "@general-agent/encryption/credentials";
 import {
   createCredentialAction,
   updateCredentialAction,
-} from "@/lib/actions/credential";
+} from "@/actions/credential";
 
 type LLMCredentialDialogProps = {
   isOpen: boolean;

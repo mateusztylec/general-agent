@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   createCredentialAction,
   updateCredentialAction,
-} from "@/lib/actions/credential";
+} from "@/actions/credential";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

@@ -19,7 +19,7 @@ import {
   updateCredentialAction,
   testCredentialAction,
   testCredentialWithoutSaveAction,
-} from "@/lib/actions/credential";
+} from "@/actions/credential";
 
 type CredentialDialogProps = {
   isOpen: boolean;

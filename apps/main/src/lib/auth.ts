@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@general-agent/database/client";
@@ -18,3 +19,10 @@ export const auth = betterAuth({
 
 export type Session = typeof auth.$Infer.Session.session;
 export type User = typeof auth.$Infer.Session.user;
+
+/** For use in Server Actions. Throws if not authenticated. */
+export async function getSession() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) throw new Error("Unauthorized");
+  return session;
+}

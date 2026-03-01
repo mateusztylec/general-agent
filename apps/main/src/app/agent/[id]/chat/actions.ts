@@ -1,6 +1,5 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { db } from '@general-agent/database/client';
 import * as schema from '@general-agent/database/schema';
 import {
@@ -13,17 +12,11 @@ import {
 } from '@general-agent/database/queries/chat-sessions';
 import { and, eq } from 'drizzle-orm';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
-import { auth } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { startAgentChatSession, sendAgentChatMessage } from '@/lib/agent/agent-spawner';
 import { setSandboxTimeout, killSandbox, pauseSandbox, resumeSandbox } from '@general-agent/sandbox/spawner';
 
 const RESET_TIMEOUT_MS = 3 * 60 * 1000;
-
-async function getSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error('Unauthorized');
-  return session;
-}
 
 export async function createChatAction(agentId: string) {
   const session = await getSession();

@@ -1,15 +1,8 @@
 'use server';
 
-import { headers } from 'next/headers';
 import { db } from '@general-agent/database/client';
 import { createAgent } from '@general-agent/database/queries/agents';
-import { auth } from '@/lib/auth';
-
-async function getSession() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) throw new Error('Unauthorized');
-  return session;
-}
+import { getSession } from '@/lib/auth';
 
 export async function createAgentAction(name: string) {
   const session = await getSession();

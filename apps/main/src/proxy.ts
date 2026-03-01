@@ -9,6 +9,7 @@ export async function proxy(request: NextRequest) {
   if (
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/setup") ||
     pathname.startsWith("/api/auth") // Better Auth API routes
   ) {
     return NextResponse.next();
