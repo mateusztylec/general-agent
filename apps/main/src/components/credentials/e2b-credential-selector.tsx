@@ -16,6 +16,7 @@ type Credential = {
   id: string;
   name: string;
   type: string;
+  provider?: string;
 };
 
 type E2BCredentialSelectorProps = {
@@ -38,7 +39,7 @@ export function E2BCredentialSelector({
       .then((data) => {
         const allCredentials = data.credentials || [];
         const filtered = allCredentials.filter(
-          (cred: Credential) => cred.type === "e2b_api_key"
+          (cred: Credential) => cred.type === "sandbox_credentials" && cred.provider === "e2b"
         );
         setCredentials(filtered);
       })
@@ -56,7 +57,7 @@ export function E2BCredentialSelector({
       .then((data) => {
         const allCredentials = data.credentials || [];
         const filtered = allCredentials.filter(
-          (cred: Credential) => cred.type === "e2b_api_key"
+          (cred: Credential) => cred.type === "sandbox_credentials" && cred.provider === "e2b"
         );
         setCredentials(filtered);
         onChange(newCredentialId);

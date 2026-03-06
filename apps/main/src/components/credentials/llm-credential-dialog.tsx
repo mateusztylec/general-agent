@@ -11,12 +11,29 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Key, Loader2 } from "lucide-react";
-import type { CredentialData } from "@general-agent/encryption/credentials";
+import type { LLMCredentialPayload, LLMProvider } from "@general-agent/encryption/credentials";
+import {
+  LLMProviderSchema,
+  parseLLMCredentialData,
+} from "@general-agent/encryption/credentials";
 import {
   createCredentialAction,
   updateCredentialAction,
 } from "@/actions/credential";
+
+const LLM_PROVIDERS: { value: LLMProvider; label: string }[] = [
+  { value: "openai", label: "OpenAI" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "google", label: "Google" },
+];
 
 type LLMCredentialDialogProps = {
   isOpen: boolean;
@@ -32,6 +49,7 @@ export function LLMCredentialDialog({
   existingCredentialId,
 }: LLMCredentialDialogProps) {
   const [name, setName] = useState("");
+  const [provider, setProvider] = useState<LLMProvider>("openai");
   const [apiKey, setApiKey] = useState("");
   const [organization, setOrganization] = useState("");
   const [projectId, setProjectId] = useState("");
@@ -46,19 +64,21 @@ export function LLMCredentialDialog({
         .then((res) => res.json())
         .then((data) => {
           if (data.credential) {
+            const provider = LLMProviderSchema.parse(data.credential.provider);
+            const credData = parseLLMCredentialData(provider, data.credential.data);
+
             setName(data.credential.name);
-            const credData = data.credential.data as CredentialData["llm_api_key"];
-            setOrganization(credData.organization || "");
-            setProjectId(credData.projectId || "");
-            // API key is masked, don't set it
+            setProvider(provider);
+            setOrganization(credData.organization ?? "");
+            setProjectId(credData.projectId ?? "");
             setApiKey("");
           }
         })
         .catch((err) => console.error("Failed to load credential:", err))
         .finally(() => setLoadingExisting(false));
     } else if (isOpen) {
-      // Reset form for new credential
       setName("");
+      setProvider("openai");
       setApiKey("");
       setOrganization("");
       setProjectId("");
@@ -69,20 +89,11 @@ export function LLMCredentialDialog({
     setLoading(true);
 
     try {
-      const credentialData: Record<string, unknown> = {};
-
-      // Only include API key if user entered one (for updates, blank means don't change)
-      if (apiKey) {
-        credentialData.apiKey = apiKey;
-      }
-
-      // Add optional fields if provided
-      if (organization) {
-        credentialData.organization = organization;
-      }
-      if (projectId) {
-        credentialData.projectId = projectId;
-      }
+      const credentialData: Partial<LLMCredentialPayload<LLMProvider>> = {
+        ...(apiKey && { apiKey }),
+        ...(organization && { organization }),
+        ...(projectId && { projectId }),
+      };
 
       let credentialId: string;
 
@@ -101,7 +112,8 @@ export function LLMCredentialDialog({
 
         const result = await createCredentialAction({
           name,
-          type: "llm_api_key",
+          type: "llm_credentials",
+          provider,
           data: credentialData,
         });
         credentialId = result.credential.id;
@@ -137,6 +149,28 @@ export function LLMCredentialDialog({
           </div>
         ) : (
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="credential-provider">Provider</Label>
+              <Select
+                value={provider}
+                onValueChange={(v) => setProvider(v as LLMProvider)}
+                disabled={!!existingCredentialId}
+              >
+                <SelectTrigger id="credential-provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {LLM_PROVIDERS.map((p) => (
+                    <SelectItem key={p.value} value={p.value}>
+                      {p.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {existingCredentialId && (
+                <p className="text-xs text-muted-foreground">Provider cannot be changed when editing</p>
+              )}
+            </div>
             <div className="space-y-2">
               <Label htmlFor="credential-name">Name</Label>
               <Input

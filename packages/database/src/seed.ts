@@ -156,7 +156,8 @@ async function seed() {
     const [credential] = await db.insert(schema.credentials).values({
       userId: testUser.id,
       name: 'Test LLM Credential',
-      type: 'llm_api_key',
+      type: 'llm_credentials',
+      provider: 'anthropic',
       data: encryptedData,
     }).returning();
 
@@ -175,7 +176,7 @@ async function seed() {
           provider: 'anthropic',
           model: 'anthropic/claude-sonnet-4-5-20250929',
           systemPrompt: 'You are a helpful coding assistant.',
-          apiKeyCredentialId: credential.id,
+          credentialId: credential.id,
         },
         tools: {
           "bash": true,

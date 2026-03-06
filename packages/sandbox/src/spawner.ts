@@ -73,6 +73,7 @@ export type AgentSession = {
   url: string;
   token: string;
   sessionId: string;
+  endAt: Date;
   client: ReturnType<typeof createOpencodeClient>;
   cleanup: () => Promise<void>;
   mountResults: MountResult[];
@@ -208,6 +209,9 @@ EOF`,
     }
     const sessionId = session.data.id;
     console.log("[Sandbox Spawner] Session created:", sessionId);
+
+    const info = await sandbox.getInfo();
+    const endAt = info.endAt instanceof Date ? info.endAt : new Date(info.endAt ?? Date.now());
     console.log("[Sandbox Spawner] Phase 1 complete - ready to register in DB");
 
     return {
@@ -215,6 +219,7 @@ EOF`,
       url,
       token: accessToken || "",
       sessionId,
+      endAt,
       client,
       mountResults,
       cleanup: async () => {

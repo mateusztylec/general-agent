@@ -23,6 +23,7 @@ export async function GET() {
         id: credentials.id,
         name: credentials.name,
         type: credentials.type,
+        provider: credentials.provider,
         createdAt: credentials.createdAt,
         updatedAt: credentials.updatedAt,
       })

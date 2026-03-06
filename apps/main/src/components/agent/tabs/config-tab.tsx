@@ -126,11 +126,11 @@ export function ConfigTab({ config, onChange }: ConfigTabProps) {
         <div className="space-y-2">
           <Label htmlFor="llm-credential">API Key Credential (Required)</Label>
           <LLMCredentialSelector
-            credentialId={config.llm.apiKeyCredentialId}
+            credentialId={config.llm.credentialId}
             onChange={(credentialId) =>
               onChange({
                 ...config,
-                llm: { ...config.llm, apiKeyCredentialId: credentialId || "" },
+                llm: { ...config.llm, credentialId: credentialId || "" },
               })
             }
           />

@@ -40,7 +40,7 @@ export function LLMCredentialSelector({
         const allCredentials = data.credentials || [];
         // Filter for LLM credentials only
         const filtered = allCredentials.filter(
-          (cred: Credential) => cred.type === "llm_api_key"
+          (cred: Credential) => cred.type === "llm_credentials"
         );
         setCredentials(filtered);
       })
@@ -55,7 +55,7 @@ export function LLMCredentialSelector({
       .then((data) => {
         const allCredentials = data.credentials || [];
         const filtered = allCredentials.filter(
-          (cred: Credential) => cred.type === "llm_api_key"
+          (cred: Credential) => cred.type === "llm_credentials"
         );
         setCredentials(filtered);
         // Auto-select the newly created credential

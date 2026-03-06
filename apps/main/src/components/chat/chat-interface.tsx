@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { OpencodeSteps } from '@/components/opencode/opencode-steps';
@@ -33,6 +34,7 @@ function formatCountdown(remainingMs: number) {
 }
 
 export function ChatInterface({ chatId }: ChatInterfaceProps) {
+  const router = useRouter();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatStatus, setChatStatus] = useState<'active' | 'paused' | 'closed'>('closed');
@@ -209,6 +211,10 @@ export function ChatInterface({ chatId }: ChatInterfaceProps) {
       setIsResettingTimeout(false);
     }
   };
+
+  useEffect(() => {
+    router.refresh();
+  }, [router]);
 
   useEffect(() => {
     if (chatStatus !== 'active' || !sandboxEndAt) return;

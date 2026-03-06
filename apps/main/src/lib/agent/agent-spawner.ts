@@ -20,6 +20,7 @@ function createCredentialFetcher(userId: string): GetCredentialFn {
 
     return {
       type: credential.type,
+      provider: credential.provider,
       data: decryptedData,
     };
   };
@@ -47,20 +48,20 @@ export async function startAgentChatSession(
   agentConfig: AgentConfig,
   metadata: { userId: string }
 ) {
-  if (!agentConfig.llm.apiKeyCredentialId) {
+  if (!agentConfig.llm.credentialId) {
     throw new Error('LLM credential is required. Please configure a credential in the Config tab.');
   }
 
   console.log('[Agent Spawner] Starting chat session');
   const credFetcher = createCredentialFetcher(metadata.userId);
-  const credential = await credFetcher(agentConfig.llm.apiKeyCredentialId);
+  const credential = await credFetcher(agentConfig.llm.credentialId);
   const data = credential.data as { apiKey: string; organization?: string; projectId?: string };
   const llmEnvVars = buildLlmEnvVars(agentConfig, data);
 
-  if (!agentConfig.sandbox?.e2bApiKeyCredentialId) {
+  if (!agentConfig.sandbox?.credentialId) {
     throw new Error('E2B API key credential is required. Please configure it in the Sandbox tab.');
   }
-  const e2bCredential = await credFetcher(agentConfig.sandbox.e2bApiKeyCredentialId);
+  const e2bCredential = await credFetcher(agentConfig.sandbox.credentialId);
   const e2bApiKey = (e2bCredential.data as { apiKey: string }).apiKey;
 
   const session = await createAgentSession(
@@ -76,6 +77,7 @@ export async function startAgentChatSession(
     opencodeSessionId: session.sessionId,
     url: session.url,
     token: session.token,
+    endAt: session.endAt,
   };
 }
 

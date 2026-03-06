@@ -57,6 +57,20 @@
       "when": 1770679820663,
       "tag": "0007_overconfident_mathemanic",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772409930931,
+      "tag": "0008_loud_sabretooth",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1772412892428,
+      "tag": "0009_big_ben_grimm",
+      "breakpoints": true
     }
   ]
 }

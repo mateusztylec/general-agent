@@ -9,12 +9,15 @@ import {
   encryptCredentials,
   decryptCredentials,
   CredentialTypeSchema,
+  StorageProviderSchema,
+  type CredentialType,
 } from '@general-agent/encryption/credentials';
 import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 
 const CreateCredentialSchema = z.object({
   name: z.string().min(1),
   type: CredentialTypeSchema,
+  provider: z.string().min(1),
   data: z.record(z.string(), z.unknown()),
 });
 
@@ -27,13 +30,21 @@ const TestExistingSchema = z.object({
   bucketName: z.string().min(1),
 });
 
-const TestWithoutSaveSchema = z.object({
-  type: z.enum(['s3_credentials', 'r2_credentials']),
-  data: z.object({
-    endpoint: z.string(),
-    accessKeyId: z.string(),
-    secretAccessKey: z.string(),
-  }),
+const TestWithoutSaveStorageSchema = z.object({
+  type: z.literal('storage_credentials'),
+  provider: StorageProviderSchema,
+  data: z.union([
+    z.object({
+      endpoint: z.string(),
+      accessKeyId: z.string(),
+      secretAccessKey: z.string(),
+    }),
+    z.object({
+      accessKeyId: z.string(),
+      secretAccessKey: z.string(),
+      region: z.string(),
+    }),
+  ]),
   bucketName: z.string().min(1),
 });
 
@@ -73,9 +84,32 @@ async function testS3Connection(
   }
 }
 
+function getStorageEndpoint(
+  provider: string,
+  data: Record<string, unknown>
+): string {
+  if (provider === 'cloudflare_r2' && typeof data.endpoint === 'string') {
+    const e = data.endpoint.trim().replace(/\/+$/, '');
+    if (e.startsWith('http://') || e.startsWith('https://')) {
+      try {
+        const parsed = new URL(e);
+        return `${parsed.hostname}${parsed.pathname}`.replace(/\/+$/, '');
+      } catch {
+        return e.replace(/^https?:\/\//, '');
+      }
+    }
+    return e;
+  }
+  if (provider === 'aws_s3' && typeof data.region === 'string') {
+    return `s3.${data.region}.amazonaws.com`;
+  }
+  throw new Error(`Unknown storage provider or missing endpoint/region: ${provider}`);
+}
+
 export async function createCredentialAction(data: {
   name: string;
-  type: z.infer<typeof CredentialTypeSchema>;
+  type: CredentialType;
+  provider: string;
   data: Record<string, unknown>;
 }) {
   const session = await getSession();
@@ -89,12 +123,14 @@ export async function createCredentialAction(data: {
       userId: session.user.id,
       name: parsed.name,
       type: parsed.type,
+      provider: parsed.provider,
       data: encryptedData,
     })
     .returning({
       id: credentials.id,
       name: credentials.name,
       type: credentials.type,
+      provider: credentials.provider,
       createdAt: credentials.createdAt,
       updatedAt: credentials.updatedAt,
     });
@@ -134,6 +170,7 @@ export async function updateCredentialAction(
       id: credentials.id,
       name: credentials.name,
       type: credentials.type,
+      provider: credentials.provider,
       createdAt: credentials.createdAt,
       updatedAt: credentials.updatedAt,
     });
@@ -170,36 +207,36 @@ export async function testCredentialAction(credentialId: string, bucketName: str
 
   if (!credential) throw new Error('Credential not found');
 
-  if (credential.type !== 's3_credentials' && credential.type !== 'r2_credentials') {
-    throw new Error('Connection test is only supported for S3/R2 credentials');
+  if (credential.type !== 'storage_credentials') {
+    throw new Error('Connection test is only supported for storage credentials');
   }
 
-  const credData = decryptCredentials(credential.data) as {
-    endpoint: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
+  const credData = decryptCredentials(credential.data) as Record<string, unknown>;
+  const endpoint = getStorageEndpoint(credential.provider, credData);
 
   return testS3Connection(
-    credData.endpoint,
-    credData.accessKeyId,
-    credData.secretAccessKey,
+    endpoint,
+    (credData.accessKeyId as string) ?? '',
+    (credData.secretAccessKey as string) ?? '',
     bucketName
   );
 }
 
 export async function testCredentialWithoutSaveAction(data: {
-  type: 's3_credentials' | 'r2_credentials';
-  data: { endpoint: string; accessKeyId: string; secretAccessKey: string };
+  type: 'storage_credentials';
+  provider: 'aws_s3' | 'cloudflare_r2';
+  data: Record<string, unknown>;
   bucketName: string;
 }) {
   await getSession();
-  const parsed = TestWithoutSaveSchema.parse(data);
+  const parsed = TestWithoutSaveStorageSchema.parse(data);
+
+  const endpoint = getStorageEndpoint(parsed.provider, parsed.data);
 
   return testS3Connection(
-    parsed.data.endpoint,
-    parsed.data.accessKeyId,
-    parsed.data.secretAccessKey,
+    endpoint,
+    (parsed.data.accessKeyId as string) ?? '',
+    (parsed.data.secretAccessKey as string) ?? '',
     parsed.bucketName
   );
 }

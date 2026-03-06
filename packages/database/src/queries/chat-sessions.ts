@@ -10,6 +10,7 @@ export type ChatSessionData = {
   url: string | null;
   token: string | null;
   status: string;
+  sandboxEndAt: Date | null;
 };
 
 export type CreateChatParams = {
@@ -24,6 +25,7 @@ export type ActivateChatSessionParams = {
   opencodeSessionId: string;
   url: string;
   token: string;
+  sandboxEndAt: Date;
 };
 
 export type AgentWithSessions = {
@@ -64,6 +66,7 @@ export const activateChatSession = async (
       url: data.url,
       token: data.token,
       status: 'active',
+      sandboxEndAt: data.sandboxEndAt,
     })
     .where(and(eq(chatSessions.id, data.chatId), eq(chatSessions.userId, data.userId)))
     .returning({
@@ -88,6 +91,7 @@ export const getChatSessionByIdAndUser = async (
       url: chatSessions.url,
       token: chatSessions.token,
       status: chatSessions.status,
+      sandboxEndAt: chatSessions.sandboxEndAt,
     })
     .from(chatSessions)
     .where(and(eq(chatSessions.id, chatId), eq(chatSessions.userId, userId)))
@@ -134,11 +138,23 @@ export const pauseChatSession = async (
   return session;
 };
 
+export const updateSandboxEndAt = async (
+  db: Database,
+  chatId: string,
+  userId: string,
+  sandboxEndAt: Date
+) => {
+  await db
+    .update(chatSessions)
+    .set({ sandboxEndAt })
+    .where(and(eq(chatSessions.id, chatId), eq(chatSessions.userId, userId)));
+};
+
 export const reactivateChatSession = async (
   db: Database,
   chatId: string,
   userId: string,
-  data: { url: string; token: string }
+  data: { url: string; token: string; sandboxEndAt: Date }
 ) => {
   const [session] = await db
     .update(chatSessions)
@@ -146,6 +162,7 @@ export const reactivateChatSession = async (
       url: data.url,
       token: data.token,
       status: 'active',
+      sandboxEndAt: data.sandboxEndAt,
     })
     .where(and(eq(chatSessions.id, chatId), eq(chatSessions.userId, userId)))
     .returning({

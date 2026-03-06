@@ -65,13 +65,13 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
         <div className="space-y-2">
           <Label>API Key Credential</Label>
           <E2BCredentialSelector
-            credentialId={config.sandbox?.e2bApiKeyCredentialId}
+            credentialId={config.sandbox?.credentialId}
             onChange={(credentialId) =>
               onChange({
                 ...config,
                 sandbox: {
                   ...config.sandbox,
-                  e2bApiKeyCredentialId: credentialId,
+                  credentialId,
                 },
               })
             }
@@ -100,7 +100,7 @@ export function SandboxTab({ config, onChange }: SandboxTabProps) {
               <div key={index} className="p-4 border rounded-lg flex items-start justify-between">
                 <div className="flex-1">
                   <div className="font-medium text-sm">
-                    {storage.type.toUpperCase()} Storage
+                    {storage.type === "aws_s3" ? "Amazon S3" : "Cloudflare R2"} Storage
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">
                     {storage.config?.label || "Unnamed storage"}

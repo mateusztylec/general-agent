@@ -1,8 +1,34 @@
 import crypto from "node:crypto";
 import { z } from "zod";
-import type { CredentialData } from "./types";
+import {
+  type CredentialType,
+  CREDENTIAL_SECRET_FIELDS,
+} from "./types";
 
-export type { CredentialData } from "./types";
+export type {
+  CredentialData,
+  LLMCredentialPayload,
+  ParsedLLMCredential,
+  ParsedStorageCredential,
+  StorageCredentialPayload,
+  SandboxCredentialPayload,
+  CredentialType,
+  CredentialProvider,
+  LLMProvider,
+  SandboxProvider,
+  StorageProvider,
+} from "./types";
+
+export {
+  CredentialTypeSchema,
+  LLMProviderSchema,
+  SandboxProviderSchema,
+  StorageProviderSchema,
+  CredentialProviderSchema,
+  CREDENTIAL_SECRET_FIELDS,
+  parseLLMCredentialData,
+  parseStorageCredentialData,
+} from "./types";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12;
@@ -98,36 +124,21 @@ export function decryptCredentials(
   );
 }
 
-/**
- * Credential type schema (Zod)
- */
-export const CredentialTypeSchema = z.enum([
-  "llm_api_key",
-  "e2b_api_key",
-  "s3_credentials",
-  "r2_credentials",
-  "aws_credentials",
-  "custom",
-]);
+export function maskCredentialSecrets(
+  type: CredentialType,
+  provider: string,
+  data: Record<string, unknown>
+): Record<string, unknown> {
+  const masked = { ...data };
+  const providerFields = CREDENTIAL_SECRET_FIELDS[type]?.[provider];
+  const secretFields = (
+    providerFields ?? Object.values(CREDENTIAL_SECRET_FIELDS[type] ?? {}).flat()
+  ).filter((f): f is string => typeof f === "string");
 
-export type CredentialType = z.infer<typeof CredentialTypeSchema>;
-
-/**
- * Type-safe credential creation
- */
-export function createEncryptedCredential<T extends CredentialType>(
-  _type: T,
-  data: CredentialData[T]
-): string {
-  return encryptCredentials(data as Record<string, unknown>);
-}
-
-/**
- * Type-safe credential decryption
- */
-export function getDecryptedCredential<T extends CredentialType>(
-  _type: T,
-  encryptedData: string
-): CredentialData[T] {
-  return decryptCredentials(encryptedData) as CredentialData[T];
+  for (const field of secretFields) {
+    if (field in masked) {
+      masked[field] = "••••••••••••••••";
+    }
+  }
+  return masked;
 }

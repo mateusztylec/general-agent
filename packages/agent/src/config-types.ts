@@ -80,7 +80,7 @@ export const LLMConfigSchema = z.object({
 	provider: z.enum(["openai", "anthropic"]),
 	model: z.string(),
 	systemPrompt: z.string(),
-	apiKeyCredentialId: z.string(), // Reference to credentials table (required)
+	credentialId: z.string(), // Reference to credentials table (required)
 	small_model: z.string().optional(), // For fast operations
 });
 
@@ -94,15 +94,16 @@ export const StorageConfigDetailsSchema = z.object({
 });
 
 // Storage configuration with credential reference
+// type matches credential provider: aws_s3 | cloudflare_r2
 export const StorageConfigSchema = z.object({
-	type: z.enum(["s3", "r2"]),
+	type: z.enum(["aws_s3", "cloudflare_r2"]),
 	credentialId: z.string().optional(), // References credentials table
 	config: StorageConfigDetailsSchema.optional(), // Non-secret config
 });
 
 export const SandboxConfigSchema = z
 	.object({
-		e2bApiKeyCredentialId: z.string().optional(),
+		credentialId: z.string().optional(), // E2B API key credential
 	})
 	.strict();
 

@@ -1,23 +1,9 @@
 import type { StorageConfig } from "@general-agent/agent/config-types";
 import type { Sandbox } from "e2b";
 
-export type StorageCredentials = {
-  s3_credentials: {
-    endpoint: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
-  r2_credentials: {
-    endpoint: string;
-    accessKeyId: string;
-    secretAccessKey: string;
-  };
-};
-
-export type StorageCredentialType = keyof StorageCredentials;
-
 export type DecryptedCredential = {
   type: string;
+  provider: string;
   data: Record<string, unknown>;
 };
 
@@ -195,7 +181,8 @@ async function mountBucketWithS3fs(
   }
 
   const { bucketName, mountPath, accessMode } = config;
-  const credData = credential.data as StorageCredentials["s3_credentials"];
+  const credData = credential.data as Record<string, unknown>;
+  const provider = credential.provider;
 
   if (!credData.accessKeyId || !credData.secretAccessKey) {
     return {
@@ -203,13 +190,28 @@ async function mountBucketWithS3fs(
       storageType,
       bucketName,
       mountPath,
-      error: `Missing ${storageType.toUpperCase()} credentials (accessKeyId or secretAccessKey)`,
+      error: `Missing storage credentials (accessKeyId or secretAccessKey)`,
+    };
+  }
+
+  // Resolve endpoint: cloudflare_r2 has endpoint, aws_s3 derives from region
+  let endpoint: string;
+  if (provider === "cloudflare_r2" && typeof credData.endpoint === "string") {
+    endpoint = normalizeEndpoint(credData.endpoint);
+  } else if (provider === "aws_s3" && typeof credData.region === "string") {
+    endpoint = `s3.${credData.region}.amazonaws.com`;
+  } else {
+    return {
+      success: false,
+      storageType,
+      bucketName,
+      mountPath,
+      error: `Invalid storage credential: missing endpoint (cloudflare_r2) or region (aws_s3)`,
     };
   }
 
   try {
     const finalMountPath = resolveMountPath(bucketName, mountPath);
-    const endpoint = normalizeEndpoint(credData.endpoint);
 
     try {
       await sandbox.commands.run(`sudo mkdir -p ${shellEscape(finalMountPath)}`);
@@ -225,7 +227,7 @@ async function mountBucketWithS3fs(
 
     // Write credentials file without shell interpolation (safer for special characters)
     const credFile = "/home/user/.passwd-s3fs";
-    const credContent = `${credData.accessKeyId}:${credData.secretAccessKey}`;
+    const credContent = `${String(credData.accessKeyId)}:${String(credData.secretAccessKey)}`;
     try {
       await sandbox.files.write(credFile, credContent);
       await sandbox.commands.run(`chmod 600 ${shellEscape(credFile)}`);
@@ -243,8 +245,8 @@ async function mountBucketWithS3fs(
       `-o url=https://${endpoint}`,
       `-o passwd_file=${shellEscape(credFile)}`,
       "-o allow_other",
-      // R2 requires path-style requests; S3 uses virtual-hosted style by default
-      ...(storageType === "r2" ? ["-o use_path_request_style"] : []),
+      // R2 requires path-style requests; AWS S3 uses virtual-hosted style by default
+      ...(provider === "cloudflare_r2" ? ["-o use_path_request_style"] : []),
       "-o dbglevel=debug",
     ];
 

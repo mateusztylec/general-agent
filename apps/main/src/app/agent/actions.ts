@@ -15,7 +15,7 @@ export async function createAgentAction(name: string) {
       provider: 'anthropic' as const,
       model: 'anthropic/claude-sonnet-4-5-20250929',
       systemPrompt: '',
-      apiKeyCredentialId: '',
+      credentialId: '',
     },
     tools: {},
     sandbox: {},

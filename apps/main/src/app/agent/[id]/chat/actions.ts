@@ -9,12 +9,13 @@ import {
   closeChatSession,
   pauseChatSession,
   reactivateChatSession,
+  updateSandboxEndAt,
 } from '@general-agent/database/queries/chat-sessions';
 import { and, eq } from 'drizzle-orm';
 import { parseAgentConfig } from '@general-agent/agent/config-types';
 import { getSession } from '@/lib/auth';
 import { startAgentChatSession, sendAgentChatMessage } from '@/lib/agent/agent-spawner';
-import { setSandboxTimeout, killSandbox, pauseSandbox, resumeSandbox } from '@general-agent/sandbox/spawner';
+import { setSandboxTimeout, killSandbox, pauseSandbox, resumeSandbox, getSandboxInfo } from '@general-agent/sandbox/spawner';
 
 const RESET_TIMEOUT_MS = 3 * 60 * 1000;
 
@@ -40,7 +41,23 @@ export async function startChatAction(chatId: string) {
   if (!chat) throw new Error('Chat not found');
 
   if (chat.status === 'active' && chat.sandboxId && chat.opencodeSessionId && chat.url && chat.token) {
-    return { status: 'active' as const };
+    const now = new Date();
+
+    if (chat.sandboxEndAt && chat.sandboxEndAt < now) {
+      // Sandbox definitely expired — close and fall through to re-create
+      await closeChatSession(db, chatId, session.user.id);
+    } else {
+      // Might still be alive — verify with E2B
+      try {
+        const info = await getSandboxInfo(chat.sandboxId);
+        const endAt = info.endAt instanceof Date ? info.endAt : new Date(info.endAt ?? now);
+        await updateSandboxEndAt(db, chatId, session.user.id, endAt);
+        return { status: 'active' as const, sandboxEndAt: endAt.toISOString() };
+      } catch {
+        // Sandbox is gone — close and fall through to re-create
+        await closeChatSession(db, chatId, session.user.id);
+      }
+    }
   }
 
   const [agent] = await db
@@ -61,9 +78,10 @@ export async function startChatAction(chatId: string) {
     opencodeSessionId: started.opencodeSessionId,
     url: started.url,
     token: started.token,
+    sandboxEndAt: started.endAt,
   });
 
-  return { status: 'active' as const };
+  return { status: 'active' as const, sandboxEndAt: started.endAt.toISOString() };
 }
 
 export async function pauseChatAction(chatId: string) {
@@ -86,7 +104,9 @@ export async function resumeChatAction(chatId: string) {
 
   try {
     const resumed = await resumeSandbox(chat.sandboxId);
-    await reactivateChatSession(db, chatId, session.user.id, resumed);
+    const info = await getSandboxInfo(chat.sandboxId);
+    const endAt = info.endAt instanceof Date ? info.endAt : new Date(info.endAt ?? Date.now());
+    await reactivateChatSession(db, chatId, session.user.id, { ...resumed, sandboxEndAt: endAt });
   } catch (error) {
     console.error('Resume failed, closing session:', error);
     await closeChatSession(db, chatId, session.user.id);
@@ -119,7 +139,7 @@ export async function sendMessageAction(chatId: string, task: string) {
 
   const chat = await getChatSessionByIdAndUser(db, chatId, session.user.id);
   if (!chat) throw new Error('Chat not found');
-  if (chat.status !== 'active' || !chat.opencodeSessionId || !chat.url || !chat.token) {
+  if (chat.status !== 'active' || !chat.sandboxId || !chat.opencodeSessionId || !chat.url || !chat.token) {
     throw new Error('Sandbox is not active. Start sandbox first.');
   }
 
@@ -139,7 +159,12 @@ export async function sendMessageAction(chatId: string, task: string) {
       url: chat.url,
       token: chat.token,
     });
-    return { text: result.text };
+
+    const info = await setSandboxTimeout(chat.sandboxId, RESET_TIMEOUT_MS);
+    const endAt = info.endAt instanceof Date ? info.endAt : new Date(info.endAt ?? Date.now());
+    await updateSandboxEndAt(db, chatId, session.user.id, endAt);
+
+    return { text: result.text, sandboxEndAt: endAt.toISOString() };
   } catch (error) {
     console.error('Message send failed, closing chat session:', error);
     await closeChatSession(db, chatId, session.user.id);
@@ -158,8 +183,9 @@ export async function resetChatTimeoutAction(chatId: string) {
 
   try {
     const info = await setSandboxTimeout(chat.sandboxId, RESET_TIMEOUT_MS);
-    const endAt = info.endAt instanceof Date ? info.endAt.toISOString() : String(info.endAt ?? '');
-    return { endAt };
+    const endAt = info.endAt instanceof Date ? info.endAt : new Date(info.endAt ?? Date.now());
+    await updateSandboxEndAt(db, chatId, session.user.id, endAt);
+    return { endAt: endAt.toISOString() };
   } catch (error) {
     console.error('Failed to reset sandbox timeout:', error);
     await closeChatSession(db, chatId, session.user.id);

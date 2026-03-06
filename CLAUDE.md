@@ -109,12 +109,12 @@ AgentConfig {
     provider: "openai" | "anthropic" | "google"
     model: string
     systemPrompt: string
-    apiKeyCredentialId: string
+    credentialId: string
     small_model?: string
   }
   tools: { [toolName]: boolean }
   permission: { [toolName]: "allow" | "deny" }
-  storage: [{ type: "s3" | "r2", credentialId: string, ... }]
+  storage: [{ type: "aws_s3" | "cloudflare_r2", credentialId: string, ... }]
   sandbox: { internetAccess: boolean }
 }
 ```

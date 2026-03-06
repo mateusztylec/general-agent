@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Plus, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import toast from "react-hot-toast";
 import type { StorageConfig } from "@general-agent/agent/config-types";
+import type { StorageProvider } from "@general-agent/encryption/credentials";
 import type { TestStatus } from "@/types/ui";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +42,7 @@ type Credential = {
   id: string;
   name: string;
   type: string;
+  provider: string;
 };
 
 function StorageDialogForm({
@@ -56,7 +58,7 @@ function StorageDialogForm({
 }) {
   const [credentials, setCredentials] = useState<Credential[]>([]);
 
-  const [type, setType] = useState<"s3" | "r2">(initialValues?.type ?? "r2");
+  const [type, setType] = useState<StorageProvider>(initialValues?.type ?? "cloudflare_r2");
   const [credentialId, setCredentialId] = useState(initialValues?.credentialId ?? "");
   const [label, setLabel] = useState(initialValues?.config?.label ?? "");
   const [description, setDescription] = useState(initialValues?.config?.description ?? "");
@@ -75,6 +77,16 @@ function StorageDialogForm({
       .then((data) => setCredentials(data.credentials || []))
       .catch(() => toast.error("Failed to load credentials"));
   }, []);
+
+  const isFirstRender = useRef(true);
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setCredentialId("");
+    setTestStatus("idle");
+  }, [type]);
 
   const handleSave = () => {
     if (!label.trim()) {
@@ -125,37 +137,49 @@ function StorageDialogForm({
       <div className="space-y-4 py-4">
         <div className="space-y-2">
           <Label htmlFor="storage-type">Storage Type</Label>
-          <Select value={type} onValueChange={(v) => setType(v as "s3" | "r2")}>
+          <Select value={type} onValueChange={(v) => setType(v as StorageProvider)}>
             <SelectTrigger id="storage-type">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="r2">Cloudflare R2</SelectItem>
-              <SelectItem value="s3">Amazon S3</SelectItem>
+              <SelectItem value="cloudflare_r2">Cloudflare R2</SelectItem>
+              <SelectItem value="aws_s3">Amazon S3</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="credential">Credential (Optional)</Label>
-          {credentials.length > 0 ? (
-            <Select value={credentialId} onValueChange={(v) => { setCredentialId(v); setTestStatus("idle"); }}>
-              <SelectTrigger id="credential">
-                <SelectValue placeholder="Select credential (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {credentials.map((cred) => (
-                  <SelectItem key={cred.id} value={cred.id}>
-                    {cred.name} ({cred.type})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : (
-            <div className="text-sm text-muted-foreground p-2 border rounded">
-              No credentials available. Create one first.
-            </div>
-          )}
+          {(() => {
+            const matchingCredentials = credentials.filter(
+              (cred) =>
+                cred.type === "storage_credentials" && cred.provider === type
+            );
+            if (matchingCredentials.length > 0) {
+              return (
+                <Select value={credentialId} onValueChange={(v) => { setCredentialId(v); setTestStatus("idle"); }}>
+                  <SelectTrigger id="credential">
+                    <SelectValue placeholder="Select credential (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {matchingCredentials.map((cred) => (
+                      <SelectItem key={cred.id} value={cred.id}>
+                        {cred.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              );
+            }
+            const label = type === "aws_s3" ? "Amazon S3" : "Cloudflare R2";
+            return (
+              <div className="text-sm text-muted-foreground p-2 border rounded">
+                {credentials.length > 0
+                  ? `No ${label} credentials. Create one first.`
+                  : "No credentials available. Create one first."}
+              </div>
+            );
+          })()}
           <p className="text-xs text-muted-foreground">
             Select a credential to use for authentication
           </p>

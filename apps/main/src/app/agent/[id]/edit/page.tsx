@@ -37,7 +37,7 @@ export default async function AgentEditPage({
         provider: "anthropic" as const,
         model: "anthropic/claude-sonnet-4-5-20250929",
         systemPrompt: "",
-        apiKeyCredentialId: "", // Required field - empty will show validation error in UI
+        credentialId: "", // Required - empty will show validation error in UI
       },
       tools: {},
       sandbox: {},

@@ -75,7 +75,8 @@ export function E2BCredentialDialog({
 
         const result = await createCredentialAction({
           name,
-          type: "e2b_api_key",
+          type: "sandbox_credentials",
+          provider: "e2b",
           data: { apiKey },
         });
         credentialId = result.credential.id;

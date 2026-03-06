@@ -62,7 +62,8 @@ export const credentials = pgTable('credentials', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: text('user_id').notNull().references(() => user.id, { onDelete: 'cascade' }),
   name: text('name').notNull(), // User-friendly name like "Production OpenAI Key"
-  type: text('type').notNull(), // Type: 'llm_api_key', 's3_credentials', 'aws_credentials', etc.
+  type: text('type').notNull(), // llm_credentials | sandbox_credentials | storage_credentials
+  provider: text('provider').notNull(), // openai | e2b | aws_s3 | cloudflare_r2
   data: text('data').notNull(), // Encrypted JSON containing the actual credentials
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -77,7 +78,8 @@ export const chatSessions = pgTable('chat_sessions', {
   opencodeSessionId: text('opencode_session_id'), // OpenCode session ID for event filtering
   url: text('url'), // E2B sandbox URL (e.g., https://xxx.e2b.dev)
   token: text('token'), // E2B traffic access token
-  status: text('status').notNull().default('closed'), // 'active' | 'closed'
+  status: text('status').notNull().default('closed'), // 'active' | 'paused' | 'closed'
+  sandboxEndAt: timestamp('sandbox_end_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

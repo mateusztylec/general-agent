@@ -4,31 +4,11 @@ import { credentials } from '@general-agent/database/schema';
 import { eq, and } from 'drizzle-orm';
 import { auth } from '@/lib/auth';
 import { headers } from 'next/headers';
-import { decryptCredentials } from '@general-agent/encryption/credentials';
-
-/**
- * Mask secret fields in credential data
- * Shows accessKeyId but masks secretAccessKey
- */
-function maskSecrets(type: string, data: Record<string, unknown>): Record<string, unknown> {
-  const masked = { ...data };
-
-  // Mask secret fields based on credential type
-  if (type === 's3_credentials' || type === 'r2_credentials' || type === 'aws_credentials') {
-    if (masked.secretAccessKey) {
-      masked.secretAccessKey = '••••••••••••••••';
-    }
-    if (masked.sessionToken) {
-      masked.sessionToken = '••••••••••••••••';
-    }
-  } else if (type === 'llm_api_key' || type === 'e2b_api_key') {
-    if (masked.apiKey) {
-      masked.apiKey = '••••••••••••••••';
-    }
-  }
-
-  return masked;
-}
+import {
+  decryptCredentials,
+  maskCredentialSecrets,
+  type CredentialType,
+} from '@general-agent/encryption/credentials';
 
 // GET /api/credential/[id] - Get credential with masked secrets
 export async function GET(
@@ -64,11 +44,12 @@ export async function GET(
       );
     }
 
-    // Decrypt credential data
     const decryptedData = decryptCredentials(credential.data);
-
-    // Mask secrets before sending to frontend
-    const maskedData = maskSecrets(credential.type, decryptedData);
+    const maskedData = maskCredentialSecrets(
+      credential.type as CredentialType,
+      credential.provider,
+      decryptedData
+    );
 
     return new Response(
       JSON.stringify({
@@ -76,6 +57,7 @@ export async function GET(
           id: credential.id,
           name: credential.name,
           type: credential.type,
+          provider: credential.provider,
           data: maskedData,
           createdAt: credential.createdAt,
           updatedAt: credential.updatedAt,

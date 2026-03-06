@@ -11,8 +11,22 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Key, Loader2, CheckCircle2, XCircle } from "lucide-react";
-import type { CredentialType, CredentialData } from "@general-agent/encryption/credentials";
+import type {
+  StorageCredentialPayload,
+  StorageProvider,
+} from "@general-agent/encryption/credentials";
+import {
+  parseStorageCredentialData,
+  StorageProviderSchema,
+} from "@general-agent/encryption/credentials";
 import type { TestStatus } from "@/types/ui";
 import {
   createCredentialAction,
@@ -25,7 +39,7 @@ type CredentialDialogProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (credentialId: string) => void;
-  storageType: "s3" | "r2";
+  storageProvider: StorageProvider;
   existingCredentialId?: string;
 };
 
@@ -33,10 +47,12 @@ export function CredentialDialog({
   isOpen,
   onClose,
   onSave,
-  storageType,
+  storageProvider,
   existingCredentialId,
 }: CredentialDialogProps) {
   const [name, setName] = useState("");
+  const [provider, setProvider] = useState<StorageProvider>(storageProvider);
+  const [region, setRegion] = useState("");
   const [endpoint, setEndpoint] = useState("");
   const [accessKeyId, setAccessKeyId] = useState("");
   const [secretAccessKey, setSecretAccessKey] = useState("");
@@ -46,9 +62,12 @@ export function CredentialDialog({
   const [testStatus, setTestStatus] = useState<TestStatus>("idle");
   const [testError, setTestError] = useState("");
 
-  const credentialType: CredentialType = storageType === "s3" ? "s3_credentials" : "r2_credentials";
+  const isAwsS3 = provider === "aws_s3";
 
-  // Load existing credential if editing
+  useEffect(() => {
+    setProvider(storageProvider);
+  }, [storageProvider]);
+
   useEffect(() => {
     if (isOpen && existingCredentialId) {
       setLoadingExisting(true);
@@ -56,19 +75,22 @@ export function CredentialDialog({
         .then((res) => res.json())
         .then((data) => {
           if (data.credential) {
+            const provider = StorageProviderSchema.parse(data.credential.provider);
+            const credData = parseStorageCredentialData(provider, data.credential.data);
+
             setName(data.credential.name);
-            const credData = data.credential.data as CredentialData["s3_credentials"];
-            setEndpoint(credData.endpoint || "");
-            setAccessKeyId(credData.accessKeyId || "");
-            // Secret is masked, don't set it
+            setProvider(provider);
+            setRegion(credData.provider === "aws_s3" ? credData.region : "");
+            setEndpoint(credData.provider === "cloudflare_r2" ? credData.endpoint : "");
+            setAccessKeyId(credData.accessKeyId);
             setSecretAccessKey("");
           }
         })
         .catch((err) => console.error("Failed to load credential:", err))
         .finally(() => setLoadingExisting(false));
     } else if (isOpen) {
-      // Reset form for new credential
       setName("");
+      setRegion("");
       setEndpoint("");
       setAccessKeyId("");
       setSecretAccessKey("");
@@ -76,22 +98,17 @@ export function CredentialDialog({
       setTestStatus("idle");
       setTestError("");
     }
-  }, [isOpen, existingCredentialId]);
+  }, [isOpen, existingCredentialId, storageProvider]);
 
   const handleSave = async () => {
     setLoading(true);
 
     try {
-      const credentialData: Record<string, unknown> = {
-        endpoint,
+      const credentialData: Partial<StorageCredentialPayload<StorageProvider>> = {
         accessKeyId,
+        ...(isAwsS3 ? { region } : { endpoint }),
+        ...(secretAccessKey && { secretAccessKey }),
       };
-
-      // Only include secret if user entered one (for updates, blank means don't change)
-      if (secretAccessKey) {
-        credentialData.secretAccessKey = secretAccessKey;
-      }
-
 
       let credentialId: string;
 
@@ -107,10 +124,21 @@ export function CredentialDialog({
           setLoading(false);
           return;
         }
+        if (isAwsS3 && !region) {
+          alert("Region is required for AWS S3");
+          setLoading(false);
+          return;
+        }
+        if (!isAwsS3 && !endpoint) {
+          alert("Endpoint is required for Cloudflare R2");
+          setLoading(false);
+          return;
+        }
 
         const result = await createCredentialAction({
           name,
-          type: credentialType,
+          type: "storage_credentials",
+          provider,
           data: credentialData,
         });
         credentialId = result.credential.id;
@@ -136,9 +164,13 @@ export function CredentialDialog({
       if (existingCredentialId) {
         result = await testCredentialAction(existingCredentialId, bucketName);
       } else {
+        const data = isAwsS3
+          ? { accessKeyId, secretAccessKey, region }
+          : { endpoint, accessKeyId, secretAccessKey };
         result = await testCredentialWithoutSaveAction({
-          type: credentialType,
-          data: { endpoint, accessKeyId, secretAccessKey },
+          type: "storage_credentials",
+          provider,
+          data,
           bucketName,
         });
       }
@@ -157,7 +189,10 @@ export function CredentialDialog({
 
   const canTest = existingCredentialId
     ? bucketName.length > 0
-    : endpoint.length > 0 && accessKeyId.length > 0 && secretAccessKey.length > 0 && bucketName.length > 0;
+    : accessKeyId.length > 0 &&
+      secretAccessKey.length > 0 &&
+      bucketName.length > 0 &&
+      (isAwsS3 ? region.length > 0 : endpoint.length > 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -169,7 +204,7 @@ export function CredentialDialog({
             </div>
             <DialogTitle>
               {existingCredentialId ? "Edit" : "Create"}{" "}
-              {storageType === "s3" ? "S3" : "R2"} Credential
+              {provider === "aws_s3" ? "Amazon S3" : "Cloudflare R2"} Credential
             </DialogTitle>
           </div>
         </DialogHeader>
@@ -181,28 +216,52 @@ export function CredentialDialog({
         ) : (
           <div className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="credential-provider">Provider</Label>
+              <Select
+                value={provider}
+                onValueChange={(v) => setProvider(v as StorageProvider)}
+                disabled={!!existingCredentialId}
+              >
+                <SelectTrigger id="credential-provider">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="aws_s3">Amazon S3</SelectItem>
+                  <SelectItem value="cloudflare_r2">Cloudflare R2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="credential-name">Name</Label>
               <Input
                 id="credential-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder={`My ${storageType === "s3" ? "S3" : "R2"} Credentials`}
+                placeholder={`My ${provider === "aws_s3" ? "Amazon S3" : "Cloudflare R2"} Credentials`}
               />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="credential-endpoint">Endpoint URL</Label>
-              <Input
-                id="credential-endpoint"
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder={
-                  storageType === "s3"
-                    ? "https://s3.amazonaws.com"
-                    : "https://[account-id].r2.cloudflarestorage.com"
-                }
-              />
-            </div>
+            {isAwsS3 ? (
+              <div className="space-y-2">
+                <Label htmlFor="credential-region">Region *</Label>
+                <Input
+                  id="credential-region"
+                  value={region}
+                  onChange={(e) => setRegion(e.target.value)}
+                  placeholder="us-east-1"
+                />
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="credential-endpoint">Endpoint URL *</Label>
+                <Input
+                  id="credential-endpoint"
+                  value={endpoint}
+                  onChange={(e) => setEndpoint(e.target.value)}
+                  placeholder="https://[account-id].r2.cloudflarestorage.com"
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="credential-access-key">Access Key ID</Label>
